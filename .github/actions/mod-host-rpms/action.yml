@@ -12,6 +12,9 @@ inputs:
   out:
     description: directory the RPMs are copied to
     default: mod-host-rpms
+  release:
+    description: Release of the built packages, without the dist tag; empty keeps the spec's
+    default: ''
 
 runs:
   using: composite
@@ -21,6 +24,7 @@ runs:
       env:
         SPEC_REF: ${{ inputs.spec-ref }}
         OUT: ${{ inputs.out }}
+        RELEASE: ${{ inputs.release }}
       run: |
         [ -n "$SPEC_REF" ] || read -r _ _ SPEC_REF < <(grep '^fedora-spec ' "$GITHUB_ACTION_PATH/../../pins.txt")
         export SPEC_REF
