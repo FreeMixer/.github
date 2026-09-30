@@ -1,0 +1,72 @@
+name: release-preflight
+description: Say whether a run is a release or a dry run, and refuse a release that cannot publish
+
+# Used by the build-rpm and build-deb workflows before any build minutes are spent. A release is a publish
+# requested on a tag; anything else is a dry run and needs nothing.
+
+inputs:
+  publish:
+    description: whether the caller asked to publish
+    required: true
+  target:
+    description: the Pages repository that receives the packages
+    required: true
+  require-tag:
+    description: a release is a publish on a tag; 'false' lets a workflow that publishes from a branch use this check
+    default: 'true'
+  gpg-key:
+    default: ''
+  gpg-passphrase:
+    default: ''
+  pages-token:
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        PUBLISH: ${{ inputs.publish }}
+        TARGET: ${{ inputs.target }}
+        GPG_KEY: ${{ inputs.gpg-key }}
+        GPG_PASSPHRASE: ${{ inputs.gpg-passphrase }}
+        PAGES_TOKEN: ${{ inputs.pages-token }}
+        REF: ${{ github.ref }}
+        REF_TYPE: ${{ github.ref_type }}
+        REQUIRE_TAG: ${{ inputs.require-tag }}
+        TAG: ${{ github.ref_name }}
+      run: |
+        set -euo pipefail
+        if [ "$PUBLISH" != true ] || { [ "$REQUIRE_TAG" = true ] && [ "$REF_TYPE" != tag ]; }; then
+          echo "::notice::dry run ($REF): the packages are built and an unsigned tree is assembled; nothing is signed or published"
+          exit 0
+        fi
+        echo "::notice::release of $TAG: sign and publish to $TARGET"
+
+        # a work marker becoming the published version cannot be undone: rpm and dpkg have no downgrade
+        if [ "$REQUIRE_TAG" = true ]; then
+          case "$TAG" in
+            v[0-9]*) ;;
+            *) echo "::error::'$TAG' does not match v[0-9]*"; exit 1 ;;
+          esac
+        fi
+
+        missing=
+        [ -n "$GPG_KEY" ] || missing="$missing RPM_GPG_KEY"
+        [ -n "$GPG_PASSPHRASE" ] || missing="$missing RPM_GPG_PASSPHRASE"
+        [ -n "$PAGES_TOKEN" ] || missing="$missing PAGES_TOKEN"
+        if [ -n "$missing" ]; then
+          echo "::error::missing secrets:$missing -- create them as FreeMixer organisation secrets shared with this repository"
+          exit 1
+        fi
+
+        status=$(curl -s -o /tmp/target.json -w '%{http_code}' \
+          -H "Authorization: Bearer $PAGES_TOKEN" -H "Accept: application/vnd.github+json" \
+          "https://api.github.com/repos/$TARGET")
+        if [ "$status" != 200 ]; then
+          echo "::error::the target repository $TARGET answered HTTP $status. It must exist, and PAGES_TOKEN must reach it with contents:write. Create it (public, GitHub Pages enabled) or pass another target-repo; this workflow never creates it."
+          exit 1
+        fi
+        push=$(jq -r '.permissions.push // "unknown"' /tmp/target.json)
+        [ "$push" != false ] || { echo "::error::PAGES_TOKEN cannot push to $TARGET (contents:write is missing)"; exit 1; }
+        echo "target $TARGET: $(jq -r '.visibility' /tmp/target.json), default branch $(jq -r '.default_branch' /tmp/target.json)"

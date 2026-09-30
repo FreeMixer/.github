@@ -1,0 +1,4 @@
+usr/include/mod-host
+usr/lib/*/libmod-host-protocol.so
+usr/lib/*/pkgconfig
+usr/share/mod-host

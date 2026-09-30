@@ -6,8 +6,8 @@ description: Build libmod-host-protocol from a linuxnow/mod-host commit and inst
 
 inputs:
   ref:
-    description: commit of linuxnow/mod-host
-    default: 9548ec5ca8f40968e7148267861ea13176da5c55
+    description: commit of linuxnow/mod-host; empty takes the pin of .github/pins.txt
+    default: ''
   prefix:
     description: where the library, its headers and its pkg-config file are installed
     default: /opt/mod-host-protocol
@@ -15,10 +15,20 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Resolve the commit
+      id: pin
+      shell: bash
+      env:
+        REF: ${{ inputs.ref }}
+      run: |
+        set -euo pipefail
+        [ -n "$REF" ] || read -r _ _ REF < <(grep '^mod-host-protocol ' "$GITHUB_ACTION_PATH/../../pins.txt")
+        echo "ref=$REF" >> "$GITHUB_OUTPUT"
+
     - uses: actions/checkout@v4
       with:
         repository: linuxnow/mod-host
-        ref: ${{ inputs.ref }}
+        ref: ${{ steps.pin.outputs.ref }}
         path: mod-host
 
     # PKG_CONFIG_PATH finds the library at build time and LD_LIBRARY_PATH at run time: the

@@ -1,0 +1,6 @@
+mod-host-protocol (0.1.0-1) unstable; urgency=medium
+
+  * The protocol library of the linuxnow/mod-host fork, built from its own
+    commit, as libmod-host-protocol0 and libmod-host-protocol-dev.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Wed, 30 Sep 2026 12:00:00 +0200

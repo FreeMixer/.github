@@ -83,59 +83,14 @@ jobs:
     name: Check the release can publish
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    env:
-      TARGET: ${{ inputs.target-repo }}
-      IS_TAG: ${{ github.ref_type == 'tag' }}
-      PUBLISH: ${{ inputs.publish }}
-      TAG: ${{ github.ref_name }}
-      PAGES_TOKEN: ${{ secrets.PAGES_TOKEN }}
-      RPM_GPG_KEY: ${{ secrets.RPM_GPG_KEY }}
-      RPM_GPG_PASSPHRASE: ${{ secrets.RPM_GPG_PASSPHRASE }}
     steps:
-      - name: Report the mode
-        run: |
-          if [ "$PUBLISH" = true ] && [ "$IS_TAG" = true ]; then
-            echo "::notice::release of $TAG: sign and publish to $TARGET"
-          else
-            echo "::notice::dry run ($GITHUB_REF): the RPMs are built and an unsigned tree is assembled; nothing is signed or published"
-          fi
-
-      # a work marker becoming the published version cannot be undone: rpm has no downgrade
-      - name: Refuse a tag that is not a release tag
-        if: inputs.publish && github.ref_type == 'tag'
-        run: |
-          case "$TAG" in
-            v[0-9]*) ;;
-            *) echo "::error::'$TAG' does not match v[0-9]*"; exit 1 ;;
-          esac
-
-      - name: Require the secrets
-        if: inputs.publish && github.ref_type == 'tag'
-        run: |
-          missing=
-          for s in RPM_GPG_KEY RPM_GPG_PASSPHRASE PAGES_TOKEN; do
-            [ -n "${!s}" ] || missing="$missing $s"
-          done
-          if [ -n "$missing" ]; then
-            echo "::error::missing secrets:$missing -- create them as FreeMixer organisation secrets shared with this repository"
-            exit 1
-          fi
-
-      - name: Require the target repository
-        if: inputs.publish && github.ref_type == 'tag'
-        env:
-          GH_TOKEN: ${{ secrets.PAGES_TOKEN }}
-        run: |
-          status=$(curl -s -o /tmp/target.json -w '%{http_code}' \
-            -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/$TARGET")
-          if [ "$status" != 200 ]; then
-            echo "::error::the target repository $TARGET answered HTTP $status. It must exist, and PAGES_TOKEN must reach it with contents:write. Create it (public, GitHub Pages enabled) or pass another target-repo; this workflow never creates it."
-            exit 1
-          fi
-          push=$(jq -r '.permissions.push // "unknown"' /tmp/target.json)
-          [ "$push" != false ] || { echo "::error::PAGES_TOKEN cannot push to $TARGET (contents:write is missing)"; exit 1; }
-          echo "target $TARGET: $(jq -r '.visibility' /tmp/target.json), default branch $(jq -r '.default_branch' /tmp/target.json)"
+      - uses: FreeMixer/.github/.github/actions/release-preflight@main
+        with:
+          publish: ${{ inputs.publish }}
+          target: ${{ inputs.target-repo }}
+          gpg-key: ${{ secrets.RPM_GPG_KEY }}
+          gpg-passphrase: ${{ secrets.RPM_GPG_PASSPHRASE }}
+          pages-token: ${{ secrets.PAGES_TOKEN }}
 
   build:
     name: Build (fc${{ inputs.fedora-version }}, ${{ matrix.arch }})

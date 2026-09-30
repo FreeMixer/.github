@@ -1,0 +1,17 @@
+Source: clap-headers
+Section: libdevel
+Priority: optional
+Maintainer: Pau Aliagas <linuxnow@gmail.com>
+Build-Depends: debhelper-compat (= 13), cmake
+Standards-Version: 4.6.2
+Homepage: https://github.com/free-audio/clap
+Rules-Requires-Root: no
+
+Package: clap-headers
+Architecture: all
+Multi-Arch: foreign
+Depends: ${misc:Depends}
+Description: CLAP audio plugin API headers
+ The C headers of CLAP, the CLever Audio Plugin API, with its pkg-config and
+ CMake files. Debian carries no package of them; this one exists to build
+ CLAP hosts and is not published.

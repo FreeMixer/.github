@@ -1,0 +1,16 @@
+#!/usr/bin/make -f
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+MULTIARCH = $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	dh_auto_build -- libmod-host-protocol.so
+
+override_dh_auto_test:
+	dh_auto_build -- test-protocol
+
+override_dh_auto_install:
+	$(MAKE) install-lib DESTDIR=$(CURDIR)/debian/tmp PREFIX=/usr LIBDIR=/usr/lib/$(MULTIARCH)

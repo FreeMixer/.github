@@ -1,0 +1,31 @@
+name: build-deb
+description: Build the DEBs of a checked-out tree from its debian/ directory, lint them
+
+# The caller runs as root in a Debian container with dpkg-dev, debhelper, build-essential, git and
+# lintian, and has installed what the tree Build-Depends on that Debian does not carry (deb-deps).
+
+inputs:
+  tree:
+    description: the checkout
+    default: .
+  tag:
+    description: release tag the tree must be at; empty builds a snapshot
+    default: ''
+  out:
+    description: directory the DEBs are copied to
+    default: debs
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        TREE: ${{ inputs.tree }}
+        TAG: ${{ inputs.tag }}
+        OUT: ${{ inputs.out }}
+      run: |
+        set -euo pipefail
+        git config --global --add safe.directory "$(readlink -f "$TREE")"
+        args=(-C "$TREE")
+        [ -z "$TAG" ] || args+=(-t "$TAG")
+        "$GITHUB_ACTION_PATH/build-deb.sh" "${args[@]}" "$OUT"

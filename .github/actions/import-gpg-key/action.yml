@@ -1,0 +1,35 @@
+name: import-gpg-key
+description: Import the release signing key so gpg, rpmsign and apt-ftparchive signing run without a prompt
+
+# Sets FREEMIXER_GPG_KEY_ID to the fingerprint of the imported key. The one key signs the RPMs, the dnf
+# metadata and the apt metadata. Needs gnupg2 (and pinentry, rpm-sign as the caller's tools need them).
+
+inputs:
+  gpg-key:
+    description: the signing key, armored
+    required: true
+  gpg-passphrase:
+    description: its passphrase
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        GPG_KEY: ${{ inputs.gpg-key }}
+        GPG_PASSPHRASE: ${{ inputs.gpg-passphrase }}
+      run: |
+        set -o pipefail
+        test -n "$GPG_KEY" || { echo "::error::RPM_GPG_KEY is not set; a signed publish cannot proceed"; exit 1; }
+        printf '%s\n' "$GPG_KEY" | gpg --batch --import
+        KEY_ID=$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr:/ {print $10; exit}')
+        test -n "$KEY_ID" || { echo "::error::no secret key imported from RPM_GPG_KEY"; exit 1; }
+        echo "FREEMIXER_GPG_KEY_ID=$KEY_ID" >> "$GITHUB_ENV"
+        mkdir -p ~/.gnupg && chmod 700 ~/.gnupg
+        echo 'allow-loopback-pinentry' >> ~/.gnupg/gpg-agent.conf
+        echo 'pinentry-mode loopback' >> ~/.gnupg/gpg.conf
+        printf '%s' "$GPG_PASSPHRASE" > ~/.gnupg/passphrase
+        chmod 600 ~/.gnupg/passphrase
+        echo "passphrase-file $HOME/.gnupg/passphrase" >> ~/.gnupg/gpg.conf
+        gpgconf --kill gpg-agent || true

@@ -1,0 +1,5 @@
+clap-headers (1.2.10-1) unstable; urgency=medium
+
+  * The CLAP headers at 1.2.10, for building CLAP hosts.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Wed, 30 Sep 2026 12:00:00 +0200

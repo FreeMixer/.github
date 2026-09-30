@@ -7,8 +7,8 @@ description: Build the mod-host and mod-host-protocol-devel RPMs and install the
 
 inputs:
   spec-ref:
-    description: commit of linuxnow/fedora-spec holding moddevices/mod-host.spec
-    default: 7bfaec3986d75c00c9a984c6d3ce66e1e50b5e51
+    description: commit of linuxnow/fedora-spec holding moddevices/mod-host.spec; empty takes the pin of .github/pins.txt
+    default: ''
   out:
     description: directory the RPMs are copied to
     default: mod-host-rpms
@@ -21,7 +21,10 @@ runs:
       env:
         SPEC_REF: ${{ inputs.spec-ref }}
         OUT: ${{ inputs.out }}
-      run: '"$GITHUB_ACTION_PATH/build.sh" "$OUT"'
+      run: |
+        [ -n "$SPEC_REF" ] || read -r _ _ SPEC_REF < <(grep '^fedora-spec ' "$GITHUB_ACTION_PATH/../../pins.txt")
+        export SPEC_REF
+        "$GITHUB_ACTION_PATH/build.sh" "$OUT"
 
     - name: Install mod-host and its protocol library
       shell: bash

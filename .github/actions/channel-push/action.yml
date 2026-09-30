@@ -1,0 +1,41 @@
+name: channel-push
+description: Commit what the tree scripts changed in build/channel and push it
+
+inputs:
+  publish-token:
+    required: true
+  channel:
+    required: true
+  branch:
+    default: main
+  tag:
+    description: the release tag, for the commit message
+    required: true
+  what:
+    description: rpm or deb, for the commit message and the paths added
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        PUBLISH_TOKEN: ${{ inputs.publish-token }}
+        BRANCH: ${{ inputs.branch }}
+        CHANNEL: ${{ inputs.channel }}
+        TAG: ${{ inputs.tag }}
+        WHAT: ${{ inputs.what }}
+      run: |
+        set -o pipefail
+        git -C build/channel add -A "$WHAT"
+        if git -C build/channel diff --cached --quiet; then
+          echo "the channel already carries this exact tree -- nothing to push"
+          exit 0
+        fi
+        git -C build/channel -c user.name="Pau Aliagas" -c user.email=linuxnow@gmail.com \
+          commit -q -m "$WHAT: publish $TAG (${GITHUB_REPOSITORY##*/})"
+        auth=$(printf 'x-access-token:%s' "$PUBLISH_TOKEN" | base64 -w0)
+        echo "::add-mask::$auth"
+        git -C build/channel -c http.https://github.com/.extraheader="AUTHORIZATION: basic $auth" \
+          push origin "HEAD:refs/heads/$BRANCH"
+        echo "published $TAG to $CHANNEL@$BRANCH"

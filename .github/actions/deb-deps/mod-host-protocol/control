@@ -1,0 +1,27 @@
+Source: mod-host-protocol
+Section: libs
+Priority: optional
+Maintainer: Pau Aliagas <linuxnow@gmail.com>
+Build-Depends: debhelper-compat (= 13), python3, pkgconf
+Standards-Version: 4.6.2
+Homepage: https://github.com/linuxnow/mod-host
+Rules-Requires-Root: no
+
+Package: libmod-host-protocol0
+Architecture: any
+Multi-Arch: same
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: mod-host socket server, line protocol and command dispatch
+ The socket server, the line protocol and the command dispatch of mod-host,
+ without any plugin format behind them, as a shared library. Hosts that answer
+ mod-host's protocol with a plugin backend of their own, such as omx-clap-host
+ and plugin-hostd, link it.
+
+Package: libmod-host-protocol-dev
+Section: libdevel
+Architecture: any
+Multi-Arch: same
+Depends: libmod-host-protocol0 (= ${binary:Version}), ${misc:Depends}
+Description: mod-host protocol library, development files
+ Headers, the pkg-config file and the backend scenarios of libmod-host-protocol,
+ for hosts that answer mod-host's protocol with their own plugin backend.

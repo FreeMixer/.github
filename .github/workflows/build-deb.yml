@@ -1,0 +1,196 @@
+name: Build DEB (reusable)
+
+# The Debian half of the release path of build-rpm.yml, for Raspberry Pi OS and Zynthian (Debian bookworm,
+# arm64), Debian trixie and amd64. Called from the same thin workflow, on the same v* tag:
+#
+#   jobs:
+#     deb:
+#       uses: FreeMixer/.github/.github/workflows/build-deb.yml@main
+#       with: { package-name: plugin-hostd }
+#       secrets: inherit
+#
+# A tag builds the DEBs on every Debian release and architecture of the matrix (each on a runner of its own
+# architecture, in a debian: container), runs lintian, signs the apt index and publishes into deb/ of the
+# target Pages repository. Anything that is not a tag is a dry run: it builds, lints and assembles an UNSIGNED
+# tree as an artifact.
+#
+# The packaging is the debian/ directory of the calling repository; its changelog version is the version and
+# must equal the packaging/*.spec Version when there is one, and the tag must be v<version>. What Debian does
+# not carry, libmod-host-protocol and the CLAP headers, is built from the pins of .github/pins.txt first: the
+# protocol library is published once by mod-host-protocol-deb.yml and the packages Depend on it, they never
+# carry a copy; the CLAP headers are a build dependency only.
+#
+# Secrets (organisation secrets, passed by `secrets: inherit`): RPM_GPG_KEY, RPM_GPG_PASSPHRASE, PAGES_TOKEN.
+# The one key signs the apt index as it signs the RPMs.
+
+on:
+  workflow_call:
+    inputs:
+      package-name:
+        required: true
+        type: string
+        description: 'Source package name, the Source of debian/control (e.g. plugin-hostd)'
+      publish:
+        type: boolean
+        default: false
+        description: 'Sign and publish. Takes effect on a tag only; false or a branch is a dry run.'
+      target-repo:
+        type: string
+        default: 'FreeMixer/freemixer.github.io'
+        description: 'Pages repository whose deb/ tree receives the packages'
+      arch-matrix:
+        type: string
+        default: '["amd64", "arm64"]'
+        description: 'JSON array of architectures, each built natively'
+      suite-matrix:
+        type: string
+        default: '["bookworm", "trixie"]'
+        description: 'JSON array of Debian releases (bookworm is Raspberry Pi OS and Zynthian)'
+      dependencies:
+        type: string
+        default: 'mod-host-protocol clap-headers'
+        description: 'What to build first from pins.txt (actions/deb-deps), space separated'
+      requires:
+        type: string
+        default: 'libmod-host-protocol0'
+        description: 'Packages the apt tree must already serve before this one is published'
+      build-packages:
+        type: string
+        default: ''
+        description: 'Extra distribution packages installed before the build, space separated'
+    secrets:
+      RPM_GPG_KEY:
+        required: false
+      RPM_GPG_PASSPHRASE:
+        required: false
+      PAGES_TOKEN:
+        required: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  preflight:
+    name: Check the release can publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: FreeMixer/.github/.github/actions/release-preflight@main
+        with:
+          publish: ${{ inputs.publish }}
+          target: ${{ inputs.target-repo }}
+          gpg-key: ${{ secrets.RPM_GPG_KEY }}
+          gpg-passphrase: ${{ secrets.RPM_GPG_PASSPHRASE }}
+          pages-token: ${{ secrets.PAGES_TOKEN }}
+
+  build:
+    name: Build (${{ matrix.suite }}, ${{ matrix.arch }})
+    needs: preflight
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    timeout-minutes: 45
+    container:
+      image: debian:${{ matrix.suite }}
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: ${{ fromJSON(inputs.suite-matrix) }}
+        arch: ${{ fromJSON(inputs.arch-matrix) }}
+    env:
+      RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+    steps:
+      - name: Install the build tools
+        env:
+          EXTRA: ${{ inputs.build-packages }}
+        run: |
+          apt-get update -qq
+          apt-get install -y --no-install-recommends ca-certificates git dpkg-dev debhelper build-essential lintian $EXTRA
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - uses: FreeMixer/.github/.github/actions/deb-deps@main
+        with:
+          names: ${{ inputs.dependencies }}
+
+      - uses: FreeMixer/.github/.github/actions/build-deb@main
+        with:
+          tag: ${{ env.RELEASE_TAG }}
+
+      - name: Refuse an empty build, and one of another architecture
+        env:
+          ARCH: ${{ matrix.arch }}
+          NAME: ${{ inputs.package-name }}
+        run: |
+          find debs -name '*.deb' | sort | tee built.txt
+          test -s built.txt || { echo "::error::no DEB was produced"; exit 1; }
+          bins=$(find debs \( -name "${NAME}_*_$ARCH.deb" -o -name "${NAME}_*_all.deb" \) | wc -l)
+          [ "$bins" -gt 0 ] || { echo "::error::no $NAME DEB for $ARCH"; exit 1; }
+
+      # the dependencies are built to satisfy Build-Depends; only this package is released
+      - name: Lay the package out by Debian release
+        env:
+          SUITE: ${{ matrix.suite }}
+        run: |
+          mkdir -p "out/$SUITE"
+          cp debs/*.deb "out/$SUITE/"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.package-name }}-debs-${{ matrix.suite }}-${{ matrix.arch }}
+          path: out
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    name: Sign and publish
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: debian:trixie
+    concurrency:
+      group: publish-${{ inputs.target-repo }}
+      cancel-in-progress: false
+    env:
+      DO_PUBLISH: ${{ inputs.publish && github.ref_type == 'tag' }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ${{ inputs.package-name }}-debs-*
+          merge-multiple: true
+          path: collected
+
+      - uses: FreeMixer/.github/.github/actions/publish-debs@main
+        with:
+          deb-dir: collected
+          tag: ${{ github.ref_name }}
+          sign: ${{ env.DO_PUBLISH }}
+          gpg-key: ${{ secrets.RPM_GPG_KEY }}
+          gpg-passphrase: ${{ secrets.RPM_GPG_PASSPHRASE }}
+          publish-token: ${{ secrets.PAGES_TOKEN }}
+          channel: ${{ inputs.target-repo }}
+          requires: ${{ inputs.requires }}
+
+      - uses: actions/upload-artifact@v4
+        if: env.DO_PUBLISH == 'true'
+        with:
+          name: ${{ inputs.package-name }}-debs-signed
+          path: signed/*.deb
+          if-no-files-found: error
+          retention-days: 30
+
+      - uses: actions/upload-artifact@v4
+        if: env.DO_PUBLISH != 'true'
+        with:
+          name: ${{ inputs.package-name }}-unsigned-apt-tree
+          path: build/repo/**
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Report a dry run honestly
+        if: env.DO_PUBLISH != 'true'
+        run: |
+          echo "::warning::dry run: nothing was signed or published. The unsigned tree is attached to this run."
