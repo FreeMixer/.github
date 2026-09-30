@@ -138,12 +138,20 @@ jobs:
           # noarch packages are built once, on the first architecture
           bins=$(find rpms \( -name "$NAME-[0-9]*.$ARCH.rpm" -o -name "$NAME-[0-9]*.noarch.rpm" \) | wc -l)
           [ "$bins" -gt 0 ] || { echo "::error::no $NAME binary RPM for $ARCH"; exit 1; }
+          # every package the spec builds (its subpackages too: -devel, a library package), never
+          # debuginfo/debugsource and never the mod-host BuildRequires built beside it
+          mkdir -p release
+          for pkg in $(rpmspec -q --qf '%{name}\n' packaging/*.spec | grep -vE -- '-debug(info|source)$' | sort -u); do
+            cp rpms/"$pkg"-[0-9]*.rpm release/ 2>/dev/null || true
+          done
+          ls release/*.rpm | sort | tee release.txt
+          grep -q "/$NAME-[0-9]" release.txt || { echo "::error::$NAME is not among the staged RPMs"; exit 1; }
 
       # mod-host and its protocol library are built to satisfy BuildRequires and are not part of the release
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.package-name }}-rpms-${{ matrix.arch }}
-          path: rpms/${{ inputs.package-name }}-[0-9]*.rpm
+          path: release/*.rpm
           if-no-files-found: error
           retention-days: 30
 
