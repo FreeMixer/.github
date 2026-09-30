@@ -1,6 +1,7 @@
 #!/bin/bash
 # Build the mod-host RPMs, with mod-host-protocol-devel, from the audinux spec of linuxnow/fedora-spec into $1.
-# Runs as root in a Fedora container. SPEC_REF is a commit of linuxnow/fedora-spec.
+# Runs as root in a Fedora container. SPEC_REF is a commit of linuxnow/fedora-spec; RELEASE, when set,
+# replaces the spec's Release (the dist tag is kept).
 set -euo pipefail
 
 out=$(readlink -f "${1:?usage: build.sh <output dir>}")
@@ -13,6 +14,10 @@ for f in mod-host.spec mod-host.service $(curl -fsSL "$base/mod-host.spec" | sed
     curl -fsSL "$base/$f" -o "$top/SOURCES/$f"
 done
 mv "$top/SOURCES/mod-host.spec" "$top/SPECS/"
+if [ -n "${RELEASE:-}" ]; then
+    sed -i "s/^Release:.*/Release: $RELEASE%{?dist}/" "$top/SPECS/mod-host.spec"
+    grep -qxF "Release: $RELEASE%{?dist}" "$top/SPECS/mod-host.spec" || { echo "Release not set to $RELEASE" >&2; exit 1; }
+fi
 
 # pipewire's jack first: the builddep would pull jack-audio-connection-kit-devel, which conflicts with it
 dnf install -y --setopt=install_weak_deps=False rpm-build rpmdevtools dnf5-plugins gcc make patch curl pipewire-jack-audio-connection-kit-devel
