@@ -1,15 +1,21 @@
 # FreeMixer
 
-A free, real-time digital mixing console for Linux.
+**openmixer** is a free, real-time digital mixing console for Linux: a live mixer
+you run on a PC, with a web UI on any tablet and hardware control surfaces.
+→ https://freemixer.github.io
 
-The plugin-hosting pieces the console runs on, [omx-clap-host](https://github.com/FreeMixer/omx-clap-host) and
-[plugin-hostd](https://github.com/FreeMixer/plugin-hostd), are separate packages, each released as
-signed Fedora RPMs from a version tag.
+## The pieces you can use on their own
 
-## Releasing a package
+- [plugin-hostd](https://github.com/FreeMixer/plugin-hostd) runs LV2 and CLAP plugins
+  in separate worker processes behind one mod-host socket. If a plugin crashes,
+  only its worker restarts and the others keep playing.
+- [omx-clap-host](https://github.com/FreeMixer/omx-clap-host) is a headless CLAP host
+  that speaks mod-host's protocol, one JACK client per plugin.
+- **mod-host** with the protocol library: our changes are open pull requests upstream
+  ([mod-audio/mod-host](https://github.com/mod-audio/mod-host/pulls)).
 
-Every package's release workflow is a few lines that call the one reusable workflow of this
-repository, `.github/workflows/build-rpm.yml`: push a tag `vX.Y.Z` that matches the `Version:` of the
-package's `packaging/*.spec`, and the RPMs are built for x86_64 and aarch64, signed, published into the
-`rpm/` tree of the organisation's Pages repository and attached to the GitHub release. Without a tag
-the same workflow is a dry run that publishes nothing.
+## Install
+
+Fedora: `sudo dnf config-manager addrepo --from-repofile=https://freemixer.github.io/rpm/freemixer.repo`
+
+Debian and Raspberry Pi OS: see https://freemixer.github.io
