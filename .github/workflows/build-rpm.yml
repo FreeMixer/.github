@@ -1,0 +1,272 @@
+name: Build RPM (reusable)
+
+# One release path for every FreeMixer package, called by a thin workflow in the package's repository:
+#
+#   on: { push: { tags: ['v*'] }, workflow_dispatch: {} }
+#   jobs:
+#     rpm:
+#       uses: FreeMixer/.github/.github/workflows/build-rpm.yml@main
+#       with: { package-name: plugin-hostd }
+#       secrets: inherit
+#
+# A tag builds the RPMs on every architecture of the matrix (each on a runner of its own architecture,
+# in a Fedora container), signs them, publishes them into the rpm/ tree of the target Pages repository
+# and attaches them to the GitHub release of the tag. Anything that is not a tag is a snapshot build: it
+# publishes nothing and only assembles an UNSIGNED tree as an artifact. Unsigned metadata pushed to the
+# channel would have clients trust it, and a published NEVRA cannot be taken back.
+#
+# The packaging lives in the calling repository: exactly one packaging/*.spec, whose Version: is the
+# version, and a tag that must be v<Version> on the commit being built.
+#
+# Secrets (organisation secrets, passed by `secrets: inherit`):
+#   RPM_GPG_KEY          the signing key, armored (gpg --armor --export-secret-keys)
+#   RPM_GPG_PASSPHRASE   its passphrase
+#   PAGES_TOKEN          token with contents write on the target repository
+#
+# The composite actions this workflow uses are ../actions of this repository, referenced at @main:
+# a reusable workflow cannot name its own ref, so it moves with main like the workflow does.
+
+on:
+  workflow_call:
+    inputs:
+      package-name:
+        required: true
+        type: string
+        description: 'RPM package name, the name of the spec (e.g. plugin-hostd)'
+      publish:
+        type: boolean
+        default: false
+        description: 'Sign and publish. Takes effect on a tag only; false or a branch is a dry run.'
+      target-repo:
+        type: string
+        default: 'FreeMixer/freemixer.github.io'
+        description: 'Pages repository whose rpm/ tree receives the packages'
+      base-url:
+        type: string
+        default: 'https://freemixer.github.io'
+        description: 'Where the target repository is served, for the .repo file'
+      arch-matrix:
+        type: string
+        default: '["x86_64", "aarch64"]'
+        description: 'JSON array of architectures, each built natively'
+      fedora-version:
+        type: string
+        default: '44'
+        description: 'Fedora release of the build containers'
+      needs-mod-host:
+        type: boolean
+        default: true
+        description: 'Build and install mod-host-protocol-devel from the pinned mod-host first (BuildRequires pkgconfig(mod-host-protocol))'
+      build-packages:
+        type: string
+        default: ''
+        description: 'Extra distribution packages installed before the build, space separated'
+      create-github-release:
+        type: boolean
+        default: true
+        description: 'Attach the signed RPMs to the GitHub release of the tag'
+    secrets:
+      RPM_GPG_KEY:
+        required: false
+      RPM_GPG_PASSPHRASE:
+        required: false
+      PAGES_TOKEN:
+        required: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # Fails a release before any build minutes are spent, and says what is missing.
+  preflight:
+    name: Check the release can publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      TARGET: ${{ inputs.target-repo }}
+      IS_TAG: ${{ github.ref_type == 'tag' }}
+      PUBLISH: ${{ inputs.publish }}
+      TAG: ${{ github.ref_name }}
+      PAGES_TOKEN: ${{ secrets.PAGES_TOKEN }}
+      RPM_GPG_KEY: ${{ secrets.RPM_GPG_KEY }}
+      RPM_GPG_PASSPHRASE: ${{ secrets.RPM_GPG_PASSPHRASE }}
+    steps:
+      - name: Report the mode
+        run: |
+          if [ "$PUBLISH" = true ] && [ "$IS_TAG" = true ]; then
+            echo "::notice::release of $TAG: sign and publish to $TARGET"
+          else
+            echo "::notice::dry run ($GITHUB_REF): the RPMs are built and an unsigned tree is assembled; nothing is signed or published"
+          fi
+
+      # a work marker becoming the published version cannot be undone: rpm has no downgrade
+      - name: Refuse a tag that is not a release tag
+        if: inputs.publish && github.ref_type == 'tag'
+        run: |
+          case "$TAG" in
+            v[0-9]*) ;;
+            *) echo "::error::'$TAG' does not match v[0-9]*"; exit 1 ;;
+          esac
+
+      - name: Require the secrets
+        if: inputs.publish && github.ref_type == 'tag'
+        run: |
+          missing=
+          for s in RPM_GPG_KEY RPM_GPG_PASSPHRASE PAGES_TOKEN; do
+            [ -n "${!s}" ] || missing="$missing $s"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::missing secrets:$missing -- create them as FreeMixer organisation secrets shared with this repository"
+            exit 1
+          fi
+
+      - name: Require the target repository
+        if: inputs.publish && github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ secrets.PAGES_TOKEN }}
+        run: |
+          status=$(curl -s -o /tmp/target.json -w '%{http_code}' \
+            -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$TARGET")
+          if [ "$status" != 200 ]; then
+            echo "::error::the target repository $TARGET answered HTTP $status. It must exist, and PAGES_TOKEN must reach it with contents:write. Create it (public, GitHub Pages enabled) or pass another target-repo; this workflow never creates it."
+            exit 1
+          fi
+          push=$(jq -r '.permissions.push // "unknown"' /tmp/target.json)
+          [ "$push" != false ] || { echo "::error::PAGES_TOKEN cannot push to $TARGET (contents:write is missing)"; exit 1; }
+          echo "target $TARGET: $(jq -r '.visibility' /tmp/target.json), default branch $(jq -r '.default_branch' /tmp/target.json)"
+
+  build:
+    name: Build (fc${{ inputs.fedora-version }}, ${{ matrix.arch }})
+    needs: preflight
+    runs-on: ${{ matrix.arch == 'aarch64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    timeout-minutes: 45
+    container:
+      image: fedora:${{ inputs.fedora-version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: ${{ fromJSON(inputs.arch-matrix) }}
+    env:
+      RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+    steps:
+      # pipewire's jack first: mod-host's builddep would otherwise pull jack-audio-connection-kit-devel,
+      # which conflicts with the one that spec asks for
+      - name: Install the build tools
+        env:
+          EXTRA: ${{ inputs.build-packages }}
+        run: |
+          dnf install -y --setopt=install_weak_deps=False git rpm-build dnf5-plugins gcc make tar gzip \
+            pipewire-jack-audio-connection-kit-devel $EXTRA
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - uses: FreeMixer/.github/.github/actions/mod-host-rpms@main
+        if: inputs.needs-mod-host
+
+      - uses: FreeMixer/.github/.github/actions/build-rpm@main
+        with:
+          tag: ${{ env.RELEASE_TAG }}
+
+      - name: Refuse an empty build, and one of another architecture
+        env:
+          ARCH: ${{ matrix.arch }}
+          NAME: ${{ inputs.package-name }}
+        run: |
+          find rpms -name '*.rpm' | sort | tee built.txt
+          test -s built.txt || { echo "::error::no RPM was produced"; exit 1; }
+          ls rpms/"$NAME"-[0-9]*.src.rpm
+          # noarch packages are built once, on the first architecture
+          bins=$(ls rpms/"$NAME"-[0-9]*."$ARCH".rpm rpms/"$NAME"-[0-9]*.noarch.rpm 2>/dev/null | wc -l)
+          [ "$bins" -gt 0 ] || { echo "::error::no $NAME binary RPM for $ARCH"; exit 1; }
+
+      # mod-host and its protocol library are built to satisfy BuildRequires and are not part of the release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.package-name }}-rpms-${{ matrix.arch }}
+          path: rpms/${{ inputs.package-name }}-[0-9]*.rpm
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    name: Sign and publish
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: fedora:${{ inputs.fedora-version }}
+    # The tree of the target repository is shared by every package and race-protected only by git's
+    # refusal of a non-fast-forward push; one group per target serialises this organisation's runs.
+    concurrency:
+      group: publish-${{ inputs.target-repo }}
+      cancel-in-progress: false
+    env:
+      DO_PUBLISH: ${{ inputs.publish && github.ref_type == 'tag' }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ${{ inputs.package-name }}-rpms-*
+          merge-multiple: true
+          path: collected
+
+      - uses: FreeMixer/.github/.github/actions/publish-rpms@main
+        with:
+          rpm-dir: collected
+          tag: ${{ github.ref_name }}
+          sign: ${{ env.DO_PUBLISH }}
+          gpg-key: ${{ secrets.RPM_GPG_KEY }}
+          gpg-passphrase: ${{ secrets.RPM_GPG_PASSPHRASE }}
+          publish-token: ${{ secrets.PAGES_TOKEN }}
+          channel: ${{ inputs.target-repo }}
+          base-url: ${{ inputs.base-url }}
+
+      - uses: actions/upload-artifact@v4
+        if: env.DO_PUBLISH == 'true'
+        with:
+          name: ${{ inputs.package-name }}-rpms-signed
+          path: signed/*.rpm
+          if-no-files-found: error
+          retention-days: 30
+
+      - uses: actions/upload-artifact@v4
+        if: env.DO_PUBLISH != 'true'
+        with:
+          name: ${{ inputs.package-name }}-unsigned-tree
+          path: build/repo/**
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Report a dry run honestly
+        if: env.DO_PUBLISH != 'true'
+        run: |
+          echo "::warning::dry run: nothing was signed or published. The unsigned tree is attached to this run."
+
+  release:
+    name: GitHub release
+    needs: publish
+    if: inputs.publish && inputs.create-github-release && github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.package-name }}-rpms-signed
+          path: signed
+
+      - name: Attach the signed RPMs to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          ls -l signed
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" signed/*.rpm --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" signed/*.rpm --title "$TAG" --generate-notes --repo "$GITHUB_REPOSITORY"
+          fi
