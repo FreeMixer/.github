@@ -1,6 +1,6 @@
 name: mod-host-protocol RPMs
 
-# Builds mod-host, which carries libmod-host-protocol.so.0, and mod-host-protocol-devel from the fedora-spec
+# Builds mod-host, mod-host-protocol, which carries libmod-host-protocol.so.0, and mod-host-protocol-devel from the fedora-spec
 # pin of .github/pins.txt for every architecture and publishes them into rpm/ of the Pages repository, where
 # omx-clap-host and plugin-hostd Require libmod-host-protocol.so.0, until audinux ships the library. Run by
 # hand, once per pin: the packages carry RELEASE below, and a published NEVRA is never rebuilt with new bytes,
@@ -20,8 +20,8 @@ permissions:
   contents: read
 
 env:
-  # above the audinux Copr's lib-less 5, below the 6 that ships the library, so audinux replaces it
-  RELEASE: 5.1.freemixer1
+  # above the published 5.1.freemixer1, below the audinux 7 that ships mod-host-protocol, so audinux replaces it
+  RELEASE: 5.2.freemixer1
 
 jobs:
   preflight:
@@ -73,13 +73,19 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release
-          cp mod-host-rpms/mod-host-[0-9]*."$ARCH".rpm mod-host-rpms/mod-host-protocol-devel-[0-9]*."$ARCH".rpm release/
+          cp mod-host-rpms/mod-host-[0-9]*."$ARCH".rpm mod-host-rpms/mod-host-protocol-[0-9]*."$ARCH".rpm \
+            mod-host-rpms/mod-host-protocol-devel-[0-9]*."$ARCH".rpm release/
           for f in release/*.rpm; do
             rpm -qp --qf '%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}\n' "$f"
             [ "$(rpm -qp --qf '%{RELEASE}' "$f")" = "$RELEASE.fc$FEDORA" ] || { echo "::error::$f is not Release $RELEASE.fc$FEDORA"; exit 1; }
           done
-          rpm -qp --provides release/mod-host-[0-9]*.rpm | grep '^libmod-host-protocol\.so\.0' \
-            || { echo "::error::mod-host does not provide libmod-host-protocol.so.0"; exit 1; }
+          rpm -qp --provides release/mod-host-protocol-[0-9]*.rpm | grep '^libmod-host-protocol\.so\.0' \
+            || { echo "::error::mod-host-protocol does not provide libmod-host-protocol.so.0"; exit 1; }
+          if rpm -qp --provides release/mod-host-[0-9]*.rpm | grep '^libmod-host-protocol\.so\.0'; then
+            echo "::error::mod-host still provides libmod-host-protocol.so.0"; exit 1
+          fi
+          rpm -qp --requires release/mod-host-[0-9]*.rpm | grep '^mod-host-protocol(' \
+            || { echo "::error::mod-host does not require mod-host-protocol"; exit 1; }
           rpm -qp --provides release/mod-host-protocol-devel-*.rpm | grep '^pkgconfig(mod-host-protocol)' \
             || { echo "::error::mod-host-protocol-devel does not provide pkgconfig(mod-host-protocol)"; exit 1; }
 
