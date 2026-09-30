@@ -22,6 +22,7 @@ mapfile -t found < <(find "$src" -name '*.deb' | sort)
 
 declare -A cells=()
 for f in "${found[@]}"; do
+    [ "$(dirname "$(dirname "$f")")" = "${src%/}" ] || { echo "$f is not laid out <suite>/<package>.deb under $src" >&2; exit 1; }
     suite=$(basename "$(dirname "$f")")
     arch=$(dpkg-deb -f "$f" Architecture)
     dest=$tree/debian/$suite/$arch
