@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build the mod-host RPMs, with mod-host-protocol-devel, from the audinux spec of linuxnow/fedora-spec into $1.
+# Build the mod-host RPMs, with mod-host-protocol and mod-host-protocol-devel, from the audinux spec of linuxnow/fedora-spec into $1.
 # Runs as root in a Fedora container. SPEC_REF is a commit of linuxnow/fedora-spec; RELEASE, when set,
 # replaces the spec's Release (the dist tag is kept).
 set -euo pipefail
@@ -26,4 +26,4 @@ dnf builddep -y --setopt=install_weak_deps=False "$top/SPECS/mod-host.spec"
 rpmbuild --define "_topdir $top" -bb "$top/SPECS/mod-host.spec"
 
 find "$top/RPMS" -name '*.rpm' -exec cp {} "$out/" \;
-ls "$out"/mod-host-[0-9]*.rpm "$out"/mod-host-protocol-devel-*.rpm
+ls "$out"/mod-host-[0-9]*.rpm "$out"/mod-host-protocol-[0-9]*.rpm "$out"/mod-host-protocol-devel-*.rpm

@@ -3,4 +3,4 @@
 # with it (actions/deb-deps/<name>/changelog): a published version is never rebuilt with new bytes.
 mod-host-protocol https://github.com/linuxnow/mod-host 9548ec5ca8f40968e7148267861ea13176da5c55
 clap-headers https://github.com/free-audio/clap 195b42a004144fab0b3cf95e9c067187d15365b7
-fedora-spec https://github.com/linuxnow/fedora-spec 7bfaec3986d75c00c9a984c6d3ce66e1e50b5e51
+fedora-spec https://github.com/linuxnow/fedora-spec 7bcf7908d35f9442ed1cab67653c093397296aee
