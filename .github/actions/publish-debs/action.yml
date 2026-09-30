@@ -85,7 +85,8 @@ runs:
       env:
         DEB_DIR: ${{ inputs.deb-dir }}
         SIGN: ${{ inputs.sign }}
-        REQUIRES: ${{ inputs.requires }}
+        # only a publish is held to what the channel serves; a dry run has no channel tree to ask
+        REQUIRES: ${{ inputs.sign == 'true' && inputs.requires || '' }}
       run: |
         set -o pipefail
         if [ "$SIGN" = true ]; then
