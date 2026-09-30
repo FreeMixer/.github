@@ -1,6 +1,6 @@
 <img src="openmixer-logo.svg" alt="openmixer" width="330">
 
-# FreeMixer
+# OpenMixer
 
 **openmixer** is a free, real-time digital mixing console for Linux: a live mixer
 you run on a PC, with a web UI on any tablet and hardware control surfaces.
