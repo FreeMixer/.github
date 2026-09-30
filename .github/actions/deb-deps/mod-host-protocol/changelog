@@ -1,3 +1,10 @@
+mod-host-protocol (0.1.0-4) unstable; urgency=medium
+
+  * Built from linuxnow/mod-host tag 0.10.6-2-fmx (2e28b58): #101 retries a
+    suffixed client name on any exact-name failure (jack2).
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Thu, 01 Oct 2026 01:35:49 +0200
+
 mod-host-protocol (0.1.0-3) unstable; urgency=medium
 
   * Built from linuxnow/mod-host tag 0.10.6-1-fmx (f8c4512): master f14a230
