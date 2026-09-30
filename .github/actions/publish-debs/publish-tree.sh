@@ -37,6 +37,8 @@ for f in "${found[@]}"; do
 done
 
 for cell in "${!cells[@]}"; do
+    # an Architecture: all package installs beside the arch cells, which hold the required libraries
+    [ "${cell##*/}" = all ] && continue
     for pkg in $requires; do
         compgen -G "$tree/debian/$cell/${pkg}_*.deb" >/dev/null ||
             { echo "debian/$cell holds no $pkg: publish it first (workflow mod-host-protocol-deb of FreeMixer/.github)" >&2; exit 1; }
