@@ -1,3 +1,9 @@
+mod-host-protocol (0.1.0-2) unstable; urgency=medium
+
+  * A backend can answer monitor_output and send output_set.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Wed, 30 Sep 2026 18:47:34 +0200
+
 mod-host-protocol (0.1.0-1) unstable; urgency=medium
 
   * The protocol library of the linuxnow/mod-host fork, built from its own
