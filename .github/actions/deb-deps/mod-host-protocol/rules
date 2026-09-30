@@ -7,7 +7,7 @@ MULTIARCH = $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
 	dh $@
 
 override_dh_auto_build:
-	dh_auto_build -- libmod-host-protocol.so
+	dh_auto_build -- lib
 
 override_dh_auto_test:
 	dh_auto_build -- test-protocol

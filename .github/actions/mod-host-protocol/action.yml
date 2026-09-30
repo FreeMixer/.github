@@ -40,7 +40,7 @@ runs:
         PREFIX: ${{ inputs.prefix }}
       run: |
         set -euo pipefail
-        make -C mod-host libmod-host-protocol.so
+        make -C mod-host lib
         make -C mod-host install-lib PREFIX="$PREFIX" LIBDIR="$PREFIX/lib"
         {
           echo "MOD_HOST_DIR=$GITHUB_WORKSPACE/mod-host"
