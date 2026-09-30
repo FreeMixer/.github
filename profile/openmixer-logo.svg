@@ -1,0 +1,28 @@
+<svg width="440" height="120" viewBox="0 0 440 120" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="openmixer">
+  <rect x="0.5" y="0.5" width="439" height="119" rx="24" fill="#0b0e11" stroke="#2a323b"/>
+
+  <!-- the fader mark -->
+  <g transform="translate(34 24)">
+    <line x1="20" y1="42" x2="68" y2="42" stroke="#2a323b" stroke-width="1.5" stroke-dasharray="2 3"/>
+    <g stroke-linecap="round">
+      <line x1="26" y1="14" x2="26" y2="62" stroke="#242b33" stroke-width="6"/>
+      <line x1="26" y1="50" x2="26" y2="62" stroke="#28c8e6" stroke-width="6" opacity="0.55"/>
+      <rect x="20" y="46" width="12" height="8" rx="3" fill="#cfd9e0"/>
+
+      <line x1="44" y1="14" x2="44" y2="62" stroke="#242b33" stroke-width="6"/>
+      <line x1="44" y1="26" x2="44" y2="62" stroke="#28c8e6" stroke-width="6"/>
+      <rect x="38" y="22" width="12" height="8" rx="3" fill="#28c8e6"/>
+
+      <line x1="62" y1="14" x2="62" y2="62" stroke="#242b33" stroke-width="6"/>
+      <line x1="62" y1="56" x2="62" y2="62" stroke="#28c8e6" stroke-width="6" opacity="0.4"/>
+      <rect x="56" y="52" width="12" height="8" rx="3" fill="#cfd9e0"/>
+    </g>
+  </g>
+
+  <!-- wordmark: "open" ink, "mixer" console cyan -->
+  <text x="138" y="74"
+        font-family="'Space Grotesk', 'Helvetica Neue', Arial, sans-serif"
+        font-size="46" font-weight="600" letter-spacing="-1.2">
+    <tspan fill="#eaf0f4">open</tspan><tspan fill="#28c8e6">mixer</tspan>
+  </text>
+</svg>
