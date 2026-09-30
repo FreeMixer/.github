@@ -1,6 +1,6 @@
 # What the packaging builds from, one line per source: name, git URL, commit. The RPM and DEB build
 # actions read this file, so a pin moves in one place. Bump the debian/changelog of the dependency
 # with it (actions/deb-deps/<name>/changelog): a published version is never rebuilt with new bytes.
-mod-host-protocol https://github.com/linuxnow/mod-host 9548ec5ca8f40968e7148267861ea13176da5c55
+mod-host-protocol https://github.com/linuxnow/mod-host 5739eaeb1e1857a688534686b7770cc060561c80
 clap-headers https://github.com/free-audio/clap 195b42a004144fab0b3cf95e9c067187d15365b7
-fedora-spec https://github.com/linuxnow/fedora-spec 7bcf7908d35f9442ed1cab67653c093397296aee
+fedora-spec https://github.com/linuxnow/fedora-spec f86f06c8a73d106e55f6486644d8c24da1779598
