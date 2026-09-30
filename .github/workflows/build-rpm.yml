@@ -181,7 +181,7 @@ jobs:
           test -s built.txt || { echo "::error::no RPM was produced"; exit 1; }
           ls rpms/"$NAME"-[0-9]*.src.rpm
           # noarch packages are built once, on the first architecture
-          bins=$(ls rpms/"$NAME"-[0-9]*."$ARCH".rpm rpms/"$NAME"-[0-9]*.noarch.rpm 2>/dev/null | wc -l)
+          bins=$(find rpms \( -name "$NAME-[0-9]*.$ARCH.rpm" -o -name "$NAME-[0-9]*.noarch.rpm" \) | wc -l)
           [ "$bins" -gt 0 ] || { echo "::error::no $NAME binary RPM for $ARCH"; exit 1; }
 
       # mod-host and its protocol library are built to satisfy BuildRequires and are not part of the release
