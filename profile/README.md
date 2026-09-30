@@ -1,3 +1,5 @@
+<img src="openmixer-logo.svg" alt="openmixer" width="330">
+
 # FreeMixer
 
 **openmixer** is a free, real-time digital mixing console for Linux: a live mixer
