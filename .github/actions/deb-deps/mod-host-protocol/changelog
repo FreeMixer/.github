@@ -1,3 +1,10 @@
+mod-host-protocol (0.1.0-5) unstable; urgency=medium
+
+  * Built from linuxnow/mod-host tag 0.10.6-3-fmx (ce0d247): #109:
+    param_info, remote_pages and track_info for controllers
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Thu, 01 Oct 2026 03:53:03 +0200
+
 mod-host-protocol (0.1.0-4) unstable; urgency=medium
 
   * Built from linuxnow/mod-host tag 0.10.6-2-fmx (2e28b58): #101 retries a
