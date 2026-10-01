@@ -74,6 +74,8 @@ on:
         required: false
       PAGES_TOKEN:
         required: false
+      SITE_GPG_KEY:
+        required: false
 
 defaults:
   run:
@@ -193,6 +195,7 @@ jobs:
           gpg-key: ${{ secrets.RPM_GPG_KEY }}
           gpg-passphrase: ${{ secrets.RPM_GPG_PASSPHRASE }}
           publish-token: ${{ secrets.PAGES_TOKEN }}
+          site-gpg-key: ${{ secrets.SITE_GPG_KEY }}
           channel: ${{ inputs.target-repo }}
           requires: ${{ inputs.requires }}
 
