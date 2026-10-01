@@ -16,7 +16,8 @@ name: Build RPM (reusable)
 # channel would have clients trust it, and a published NEVRA cannot be taken back.
 #
 # The packaging lives in the calling repository: exactly one packaging/*.spec, whose Version: is the
-# version, and a tag that must be v<Version> on the commit being built.
+# version, and a tag that must be v<Version> on the commit being built. A BuildRequires the channel already
+# serves (plugin-hostd-devel) comes from the channel's repository, enabled inside the build container only.
 #
 # Secrets (organisation secrets, passed by `secrets: inherit`):
 #   RPM_GPG_KEY          the signing key, armored (gpg --armor --export-secret-keys)
@@ -61,6 +62,10 @@ on:
         type: string
         default: ''
         description: 'Extra distribution packages installed before the build, space separated'
+      channel-deps:
+        type: boolean
+        default: true
+        description: 'Take BuildRequires Fedora does not carry (plugin-hostd-devel) from the channel at base-url'
       create-github-release:
         type: boolean
         default: true
@@ -122,6 +127,22 @@ jobs:
 
       - uses: FreeMixer/.github/.github/actions/mod-host-rpms@main
         if: inputs.needs-mod-host
+
+      # for the build only: the repository exists in this container and is never a dependency of a release
+      - name: Take build dependencies from the FreeMixer channel
+        if: inputs.channel-deps
+        env:
+          BASE_URL: ${{ inputs.base-url }}
+        run: |
+          dnf config-manager addrepo --from-repofile="$BASE_URL/rpm/freemixer.repo"
+          # -devel packages are noarch, in a tree of their own; a .repo published before it named that tree lacks it
+          grep -q '^\[freemixer-noarch\]' /etc/yum.repos.d/freemixer.repo ||
+            printf '%s\n' '' '[freemixer-noarch]' 'name=FreeMixer (noarch)' \
+              "baseurl=$BASE_URL/rpm/fedora/\$releasever/noarch/" \
+              'enabled=1' 'gpgcheck=1' 'repo_gpgcheck=1' \
+              "gpgkey=$BASE_URL/rpm/RPM-GPG-KEY-freemixer" >> /etc/yum.repos.d/freemixer.repo
+          dnf -y makecache --repo freemixer --repo freemixer-noarch
+          dnf repoquery --whatprovides 'pkgconfig(plugin-hostd)'
 
       - uses: FreeMixer/.github/.github/actions/build-rpm@main
         with:
