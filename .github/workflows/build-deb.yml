@@ -18,7 +18,8 @@ name: Build DEB (reusable)
 # must equal the packaging/*.spec Version when there is one, and the tag must be v<version>. What Debian does
 # not carry, libmod-host-protocol and the CLAP headers, is built from the pins of .github/pins.txt first: the
 # protocol library is published once by mod-host-protocol-deb.yml and the packages Depend on it, they never
-# carry a copy; the CLAP headers are a build dependency only.
+# carry a copy; the CLAP headers are a build dependency only. A build dependency the channel already serves
+# (plugin-hostd-dev) comes from the channel's apt source, added inside the build container only.
 #
 # Secrets (organisation secrets, passed by `secrets: inherit`): RPM_GPG_KEY, RPM_GPG_PASSPHRASE, PAGES_TOKEN.
 # The one key signs the apt index as it signs the RPMs.
@@ -38,6 +39,10 @@ on:
         type: string
         default: 'FreeMixer/freemixer.github.io'
         description: 'Pages repository whose deb/ tree receives the packages'
+      base-url:
+        type: string
+        default: 'https://freemixer.github.io'
+        description: 'Where the target repository is served'
       arch-matrix:
         type: string
         default: '["amd64", "arm64"]'
@@ -58,6 +63,10 @@ on:
         type: string
         default: ''
         description: 'Extra distribution packages installed before the build, space separated'
+      channel-deps:
+        type: boolean
+        default: true
+        description: 'Take Build-Depends Debian does not carry (plugin-hostd-dev) from the channel at base-url'
     secrets:
       RPM_GPG_KEY:
         required: false
@@ -114,6 +123,19 @@ jobs:
       - uses: FreeMixer/.github/.github/actions/deb-deps@main
         with:
           names: ${{ inputs.dependencies }}
+
+      # for the build only: the source exists in this container and is never a dependency of a release
+      - name: Take build dependencies from the FreeMixer channel
+        if: inputs.channel-deps
+        env:
+          URL: ${{ inputs.base-url }}/deb
+          SUITE: ${{ matrix.suite }}
+        run: |
+          apt-get install -y --no-install-recommends curl
+          install -d /etc/apt/keyrings
+          curl -fsSL -o /etc/apt/keyrings/freemixer.asc "$URL/freemixer.asc"
+          echo "deb [signed-by=/etc/apt/keyrings/freemixer.asc] $URL/debian/$SUITE ./" > /etc/apt/sources.list.d/freemixer.list
+          apt-get update -qq
 
       - uses: FreeMixer/.github/.github/actions/build-deb@main
         with:

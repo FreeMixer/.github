@@ -131,6 +131,10 @@ runs:
         printf '%s\n' '[freemixer]' 'name=FreeMixer' \
           "baseurl=$BASE_URL/rpm/fedora/\$releasever/\$basearch/" \
           'enabled=1' 'gpgcheck=1' 'repo_gpgcheck=1' \
+          "gpgkey=$BASE_URL/rpm/RPM-GPG-KEY-freemixer" '' \
+          '[freemixer-noarch]' 'name=FreeMixer (noarch)' \
+          "baseurl=$BASE_URL/rpm/fedora/\$releasever/noarch/" \
+          'enabled=1' 'gpgcheck=1' 'repo_gpgcheck=1' \
           "gpgkey=$BASE_URL/rpm/RPM-GPG-KEY-freemixer" > build/channel/rpm/freemixer.repo
         cat build/channel/rpm/freemixer.repo
         mkdir -p "$SIGNED_DIR"
