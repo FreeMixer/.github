@@ -67,6 +67,10 @@ on:
         type: boolean
         default: true
         description: 'Take Build-Depends Debian does not carry (plugin-hostd-dev) from the channel at base-url'
+      create-github-release:
+        type: boolean
+        default: true
+        description: 'Attach the DEBs, named by Debian release, to the GitHub release of the tag'
     secrets:
       RPM_GPG_KEY:
         required: false
@@ -216,3 +220,44 @@ jobs:
         if: env.DO_PUBLISH != 'true'
         run: |
           echo "::warning::dry run: nothing was signed or published. The unsigned tree is attached to this run."
+
+  # Runs beside build-rpm.yml's release job, which may create the release first: create it only when it
+  # is absent, otherwise upload with --clobber. File names repeat across Debian releases, so the release
+  # is part of the asset name.
+  release:
+    name: GitHub release
+    needs: publish
+    if: inputs.publish && inputs.create-github-release && github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ${{ inputs.package-name }}-debs-*
+          merge-multiple: true
+          path: collected
+
+      - name: Attach the DEBs to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          mkdir assets
+          for deb in collected/*/*.deb; do
+            suite=$(basename "$(dirname "$deb")")
+            base=$(basename "$deb" .deb)
+            arch=${base##*_}
+            cp "$deb" "assets/${base%_*}_${suite}_${arch}.deb"
+          done
+          ls -l assets
+          test -n "$(ls assets)" || { echo "::error::no DEB to attach"; exit 1; }
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" assets/*.deb --clobber --repo "$GITHUB_REPOSITORY"
+          elif gh release create "$TAG" assets/*.deb --title "$TAG" --generate-notes --repo "$GITHUB_REPOSITORY"; then
+            :
+          else
+            # lost the race to the RPM job
+            gh release upload "$TAG" assets/*.deb --clobber --repo "$GITHUB_REPOSITORY"
+          fi
