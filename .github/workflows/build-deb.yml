@@ -31,6 +31,10 @@ on:
         required: true
         type: string
         description: 'Source package name, the Source of debian/control (e.g. plugin-hostd)'
+      binary-names:
+        type: string
+        default: ''
+        description: 'Binary DEBs the build must produce, space separated names or globs (e.g. libomxdsp-dev). Empty means package-name.'
       publish:
         type: boolean
         default: false
@@ -149,11 +153,15 @@ jobs:
         env:
           ARCH: ${{ matrix.arch }}
           NAME: ${{ inputs.package-name }}
+          BINARIES: ${{ inputs.binary-names }}
         run: |
           find debs -name '*.deb' | sort | tee built.txt
           test -s built.txt || { echo "::error::no DEB was produced"; exit 1; }
-          bins=$(find debs \( -name "${NAME}_*_$ARCH.deb" -o -name "${NAME}_*_all.deb" \) | wc -l)
-          [ "$bins" -gt 0 ] || { echo "::error::no $NAME DEB for $ARCH"; exit 1; }
+          # the binaries are named after the source package unless binary-names says otherwise
+          for bin in ${BINARIES:-$NAME}; do
+            bins=$(find debs \( -name "${bin}_*_$ARCH.deb" -o -name "${bin}_*_all.deb" \) | wc -l)
+            [ "$bins" -gt 0 ] || { echo "::error::no $bin DEB for $ARCH"; exit 1; }
+          done
 
       # the dependencies are built to satisfy Build-Depends; only this package is released
       - name: Lay the package out by Debian release
