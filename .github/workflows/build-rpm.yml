@@ -34,6 +34,10 @@ on:
         required: true
         type: string
         description: 'RPM package name, the name of the spec (e.g. plugin-hostd)'
+      binary-names:
+        type: string
+        default: ''
+        description: 'Binary RPMs the build must produce, space separated names or globs (e.g. omx-plugins-clap omx-plugins-lv2). Empty means package-name.'
       publish:
         type: boolean
         default: false
@@ -153,13 +157,17 @@ jobs:
           ARCH: ${{ matrix.arch }}
           FIRST_ARCH: ${{ fromJSON(inputs.arch-matrix)[0] }}
           NAME: ${{ inputs.package-name }}
+          BINARIES: ${{ inputs.binary-names }}
         run: |
           find rpms -name '*.rpm' | sort | tee built.txt
           test -s built.txt || { echo "::error::no RPM was produced"; exit 1; }
           ls rpms/"$NAME"-[0-9]*.src.rpm
           # noarch packages are built once, on the first architecture
-          bins=$(find rpms \( -name "$NAME-[0-9]*.$ARCH.rpm" -o -name "$NAME-[0-9]*.noarch.rpm" \) | wc -l)
-          [ "$bins" -gt 0 ] || { echo "::error::no $NAME binary RPM for $ARCH"; exit 1; }
+          # the binaries are named after the source package unless binary-names says otherwise
+          for bin in ${BINARIES:-$NAME}; do
+            bins=$(find rpms \( -name "$bin-[0-9]*.$ARCH.rpm" -o -name "$bin-[0-9]*.noarch.rpm" \) | wc -l)
+            [ "$bins" -gt 0 ] || { echo "::error::no $bin binary RPM for $ARCH"; exit 1; }
+          done
           # every package the spec builds (its subpackages too: -devel, a library package), never
           # debuginfo/debugsource and never the mod-host BuildRequires built beside it
           mkdir -p release
@@ -172,7 +180,14 @@ jobs:
             rm -f release/*.src.rpm release/*.noarch.rpm
           fi
           ls release/*.rpm | sort | tee release.txt
-          grep -q "/$NAME-[0-9]" release.txt || { echo "::error::$NAME is not among the staged RPMs"; exit 1; }
+          # a noarch binary ships from the first architecture only, so a later one may stage fewer
+          staged=0
+          for bin in ${BINARIES:-$NAME}; do
+            grep -q "/$bin-[0-9]" release.txt && staged=$((staged + 1))
+          done
+          if [ "$ARCH" = "$FIRST_ARCH" ]; then
+            [ "$staged" -eq "$(echo ${BINARIES:-$NAME} | wc -w)" ] || { echo "::error::not every binary RPM (${BINARIES:-$NAME}) is among the staged RPMs"; exit 1; }
+          fi
 
       # mod-host and its protocol library are built to satisfy BuildRequires and are not part of the release
       - uses: actions/upload-artifact@v4
