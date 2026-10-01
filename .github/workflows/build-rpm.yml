@@ -151,6 +151,7 @@ jobs:
       - name: Refuse an empty build, and one of another architecture
         env:
           ARCH: ${{ matrix.arch }}
+          FIRST_ARCH: ${{ fromJSON(inputs.arch-matrix)[0] }}
           NAME: ${{ inputs.package-name }}
         run: |
           find rpms -name '*.rpm' | sort | tee built.txt
@@ -165,6 +166,11 @@ jobs:
           for pkg in $(rpmspec -q --qf '%{name}\n' packaging/*.spec | grep -vE -- '-debug(info|source)$' | sort -u); do
             cp rpms/"$pkg"-[0-9]*.rpm release/ 2>/dev/null || true
           done
+          # the source and noarch packages come out of every job under the same file name with different
+          # bytes; merge-multiple would write them over each other, so only the first architecture ships them
+          if [ "$ARCH" != "$FIRST_ARCH" ]; then
+            rm -f release/*.src.rpm release/*.noarch.rpm
+          fi
           ls release/*.rpm | sort | tee release.txt
           grep -q "/$NAME-[0-9]" release.txt || { echo "::error::$NAME is not among the staged RPMs"; exit 1; }
 
