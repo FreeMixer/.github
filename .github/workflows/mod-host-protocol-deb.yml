@@ -36,8 +36,7 @@ jobs:
           publish: ${{ inputs.publish }}
           require-tag: 'false'
           target: FreeMixer/freemixer.github.io
-          gpg-key: ${{ secrets.RPM_GPG_KEY }}
-          gpg-passphrase: ${{ secrets.RPM_GPG_PASSPHRASE }}
+          gpg-key: ${{ secrets.OPENMIXER_PACKAGES_SIGNING_KEY }}
           pages-token: ${{ secrets.PAGES_TOKEN }}
 
   build:
@@ -107,8 +106,10 @@ jobs:
           deb-dir: collected
           tag: mod-host-protocol
           sign: ${{ env.DO_PUBLISH }}
-          gpg-key: ${{ secrets.RPM_GPG_KEY }}
-          gpg-passphrase: ${{ secrets.RPM_GPG_PASSPHRASE }}
+          gpg-key: ${{ secrets.OPENMIXER_PACKAGES_SIGNING_KEY }}
+          # the original key co-signs the apt index while installs may hold only it (publish-debs)
+          cosign-key: ${{ secrets.RPM_GPG_KEY }}
+          cosign-passphrase: ${{ secrets.RPM_GPG_PASSPHRASE }}
           publish-token: ${{ secrets.PAGES_TOKEN }}
 
       - uses: actions/upload-artifact@v4

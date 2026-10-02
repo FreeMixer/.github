@@ -21,8 +21,9 @@ name: Build DEB (reusable)
 # carry a copy; the CLAP headers are a build dependency only. A build dependency the channel already serves
 # (plugin-hostd-dev) comes from the channel's apt source, added inside the build container only.
 #
-# Secrets (organisation secrets, passed by `secrets: inherit`): RPM_GPG_KEY, RPM_GPG_PASSPHRASE, PAGES_TOKEN.
-# The one key signs the apt index as it signs the RPMs.
+# Secrets (organisation secrets, passed by `secrets: inherit`): OPENMIXER_PACKAGES_SIGNING_KEY, PAGES_TOKEN,
+# and the original key RPM_GPG_KEY, RPM_GPG_PASSPHRASE. The packages key signs the apt index as it signs the
+# RPMs; the original key co-signs the index while apt installs may hold only it in their signed-by file.
 
 on:
   workflow_call:
@@ -76,6 +77,8 @@ on:
         default: true
         description: 'Attach the DEBs, named by Debian release, to the GitHub release of the tag'
     secrets:
+      OPENMIXER_PACKAGES_SIGNING_KEY:
+        required: false
       RPM_GPG_KEY:
         required: false
       RPM_GPG_PASSPHRASE:
@@ -97,8 +100,7 @@ jobs:
         with:
           publish: ${{ inputs.publish }}
           target: ${{ inputs.target-repo }}
-          gpg-key: ${{ secrets.RPM_GPG_KEY }}
-          gpg-passphrase: ${{ secrets.RPM_GPG_PASSPHRASE }}
+          gpg-key: ${{ secrets.OPENMIXER_PACKAGES_SIGNING_KEY }}
           pages-token: ${{ secrets.PAGES_TOKEN }}
 
   build:
@@ -202,8 +204,10 @@ jobs:
           deb-dir: collected
           tag: ${{ github.ref_name }}
           sign: ${{ env.DO_PUBLISH }}
-          gpg-key: ${{ secrets.RPM_GPG_KEY }}
-          gpg-passphrase: ${{ secrets.RPM_GPG_PASSPHRASE }}
+          gpg-key: ${{ secrets.OPENMIXER_PACKAGES_SIGNING_KEY }}
+          # the original key co-signs the apt index while installs may hold only it (publish-debs)
+          cosign-key: ${{ secrets.RPM_GPG_KEY }}
+          cosign-passphrase: ${{ secrets.RPM_GPG_PASSPHRASE }}
           publish-token: ${{ secrets.PAGES_TOKEN }}
           channel: ${{ inputs.target-repo }}
           requires: ${{ inputs.requires }}

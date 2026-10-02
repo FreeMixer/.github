@@ -36,8 +36,7 @@ jobs:
           publish: ${{ inputs.publish }}
           require-tag: 'false'
           target: FreeMixer/freemixer.github.io
-          gpg-key: ${{ secrets.RPM_GPG_KEY }}
-          gpg-passphrase: ${{ secrets.RPM_GPG_PASSPHRASE }}
+          gpg-key: ${{ secrets.OPENMIXER_PACKAGES_SIGNING_KEY }}
           pages-token: ${{ secrets.PAGES_TOKEN }}
 
   build:
@@ -119,8 +118,7 @@ jobs:
           rpm-dir: collected
           tag: mod-host-${{ env.EVR }}
           sign: ${{ env.DO_PUBLISH }}
-          gpg-key: ${{ secrets.RPM_GPG_KEY }}
-          gpg-passphrase: ${{ secrets.RPM_GPG_PASSPHRASE }}
+          gpg-key: ${{ secrets.OPENMIXER_PACKAGES_SIGNING_KEY }}
           publish-token: ${{ secrets.PAGES_TOKEN }}
 
       - uses: actions/upload-artifact@v4
