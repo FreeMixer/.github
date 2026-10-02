@@ -20,8 +20,8 @@ name: Build RPM (reusable)
 # serves (plugin-hostd-devel) comes from the channel's repository, enabled inside the build container only.
 #
 # Secrets (organisation secrets, passed by `secrets: inherit`):
-#   RPM_GPG_KEY          the signing key, armored (gpg --armor --export-secret-keys)
-#   RPM_GPG_PASSPHRASE   its passphrase
+#   OPENMIXER_PACKAGES_SIGNING_KEY   the release key's packages subkey, armored, exported subkey-only and
+#                                    without a passphrase (platform signing-keys.yml, project openmixer)
 #   PAGES_TOKEN          token with contents write on the target repository
 #
 # The composite actions this workflow uses are ../actions of this repository, referenced at @main:
@@ -75,9 +75,7 @@ on:
         default: true
         description: 'Attach the signed RPMs to the GitHub release of the tag'
     secrets:
-      RPM_GPG_KEY:
-        required: false
-      RPM_GPG_PASSPHRASE:
+      OPENMIXER_PACKAGES_SIGNING_KEY:
         required: false
       PAGES_TOKEN:
         required: false
@@ -97,8 +95,7 @@ jobs:
         with:
           publish: ${{ inputs.publish }}
           target: ${{ inputs.target-repo }}
-          gpg-key: ${{ secrets.RPM_GPG_KEY }}
-          gpg-passphrase: ${{ secrets.RPM_GPG_PASSPHRASE }}
+          gpg-key: ${{ secrets.OPENMIXER_PACKAGES_SIGNING_KEY }}
           pages-token: ${{ secrets.PAGES_TOKEN }}
 
   build:
@@ -223,8 +220,7 @@ jobs:
           rpm-dir: collected
           tag: ${{ github.ref_name }}
           sign: ${{ env.DO_PUBLISH }}
-          gpg-key: ${{ secrets.RPM_GPG_KEY }}
-          gpg-passphrase: ${{ secrets.RPM_GPG_PASSPHRASE }}
+          gpg-key: ${{ secrets.OPENMIXER_PACKAGES_SIGNING_KEY }}
           publish-token: ${{ secrets.PAGES_TOKEN }}
           channel: ${{ inputs.target-repo }}
           base-url: ${{ inputs.base-url }}
