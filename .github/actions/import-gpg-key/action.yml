@@ -1,16 +1,24 @@
 name: import-gpg-key
-description: Import the release signing key so gpg, rpmsign and apt-ftparchive signing run without a prompt
+description: Import a release signing key so gpg, rpmsign and apt-ftparchive signing run without a prompt
 
-# Sets FREEMIXER_GPG_KEY_ID to the fingerprint of the imported key. The one key signs the RPMs, the dnf
-# metadata and the apt metadata. Needs gnupg2 (and pinentry, rpm-sign as the caller's tools need them).
+# Sets the variable named by id-variable (FREEMIXER_GPG_KEY_ID) to the primary fingerprint of the imported
+# key. That key signs the RPMs, the dnf metadata and the apt index; publish-debs imports a co-signer for the
+# apt index under another variable. A subkey-only export (the primary a stub) signs with its subkey.
+# Needs gnupg2 (and pinentry, rpm-sign as the caller's tools need them).
+#
+# The passphrase may be empty: a key exported without protection needs none. gpg reads one passphrase file,
+# so at most one of the keys a job imports may have a passphrase.
 
 inputs:
   gpg-key:
     description: the signing key, armored
     required: true
   gpg-passphrase:
-    description: its passphrase
-    required: true
+    description: its passphrase; empty for a key without one
+    default: ''
+  id-variable:
+    description: the environment variable that receives the key's fingerprint
+    default: FREEMIXER_GPG_KEY_ID
 
 runs:
   using: composite
@@ -19,17 +27,27 @@ runs:
       env:
         GPG_KEY: ${{ inputs.gpg-key }}
         GPG_PASSPHRASE: ${{ inputs.gpg-passphrase }}
+        ID_VARIABLE: ${{ inputs.id-variable }}
       run: |
         set -o pipefail
-        test -n "$GPG_KEY" || { echo "::error::RPM_GPG_KEY is not set; a signed publish cannot proceed"; exit 1; }
-        printf '%s\n' "$GPG_KEY" | gpg --batch --import
-        KEY_ID=$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr:/ {print $10; exit}')
-        test -n "$KEY_ID" || { echo "::error::no secret key imported from RPM_GPG_KEY"; exit 1; }
-        echo "FREEMIXER_GPG_KEY_ID=$KEY_ID" >> "$GITHUB_ENV"
+        test -n "$GPG_KEY" || { echo "::error::the signing key secret is not set; a signed publish cannot proceed"; exit 1; }
         mkdir -p ~/.gnupg && chmod 700 ~/.gnupg
-        echo 'allow-loopback-pinentry' >> ~/.gnupg/gpg-agent.conf
-        echo 'pinentry-mode loopback' >> ~/.gnupg/gpg.conf
-        printf '%s' "$GPG_PASSPHRASE" > ~/.gnupg/passphrase
-        chmod 600 ~/.gnupg/passphrase
-        echo "passphrase-file $HOME/.gnupg/passphrase" >> ~/.gnupg/gpg.conf
+        KEY_ID=$(printf '%s\n' "$GPG_KEY" | gpg --batch --with-colons --import-options show-only --import 2>/dev/null \
+          | awk -F: '/^(pub|sec):/ {p = 1; next} /^fpr:/ && p {print $10; exit}')
+        test -n "$KEY_ID" || { echo "::error::no key readable from the signing key secret"; exit 1; }
+        printf '%s\n' "$GPG_KEY" | gpg --batch --import
+        gpg --batch --list-secret-keys "$KEY_ID" >/dev/null || { echo "::error::no secret key imported for $KEY_ID"; exit 1; }
+        echo "$ID_VARIABLE=$KEY_ID" >> "$GITHUB_ENV"
+        echo "imported $KEY_ID as $ID_VARIABLE"
+        grep -qx 'allow-loopback-pinentry' ~/.gnupg/gpg-agent.conf 2>/dev/null || echo 'allow-loopback-pinentry' >> ~/.gnupg/gpg-agent.conf
+        grep -qx 'pinentry-mode loopback' ~/.gnupg/gpg.conf 2>/dev/null || echo 'pinentry-mode loopback' >> ~/.gnupg/gpg.conf
+        if [ -n "$GPG_PASSPHRASE" ]; then
+          if [ -s ~/.gnupg/passphrase ] && [ "$(cat ~/.gnupg/passphrase)" != "$GPG_PASSPHRASE" ]; then
+            echo "::error::a key with another passphrase is already imported; gpg reads one passphrase file"
+            exit 1
+          fi
+          printf '%s' "$GPG_PASSPHRASE" > ~/.gnupg/passphrase
+          chmod 600 ~/.gnupg/passphrase
+          grep -qx "passphrase-file $HOME/.gnupg/passphrase" ~/.gnupg/gpg.conf || echo "passphrase-file $HOME/.gnupg/passphrase" >> ~/.gnupg/gpg.conf
+        fi
         gpgconf --kill gpg-agent || true
