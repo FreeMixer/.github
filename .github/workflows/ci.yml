@@ -1,0 +1,61 @@
+name: ci
+
+# The publish scripts and the key import, exercised the way a release uses them, with throwaway keys: a
+# channel signed by one key, a second key served next to it, a publish signed by the second key, and a
+# client that only ever held the first (tests/key-transition.sh).
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  key-transition:
+    name: Key transition (${{ matrix.kind }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - kind: rpm
+            image: fedora:44
+            tools: dnf install -y --setopt=install_weak_deps=False rpm-build rpm-sign createrepo_c gnupg2 pinentry findutils
+          - kind: deb
+            image: debian:trixie
+            tools: apt-get update -qq && apt-get install -y --no-install-recommends apt-utils gnupg gpgv dpkg-dev
+    steps:
+      - name: Install the packaging tools
+        run: ${{ matrix.tools }}
+
+      - uses: actions/checkout@v4
+
+      - name: Make two throwaway keys
+        id: keys
+        shell: bash
+        run: |
+          set -euo pipefail
+          tests/make-keys.sh "$RUNNER_TEMP/keys"
+          for k in old new; do
+            { echo "$k<<EOF_KEY"; cat "$RUNNER_TEMP/keys/$k.sec"; echo EOF_KEY; } >> "$GITHUB_OUTPUT"
+          done
+
+      - uses: ./.github/actions/import-gpg-key
+        with:
+          gpg-key: ${{ steps.keys.outputs.new }}
+          id-variable: NEW_ID
+
+      - uses: ./.github/actions/import-gpg-key
+        with:
+          gpg-key: ${{ steps.keys.outputs.old }}
+          gpg-passphrase: old-pass
+          id-variable: OLD_ID
+
+      - name: Publish across the key change
+        shell: bash
+        run: tests/key-transition.sh ${{ matrix.kind }}
