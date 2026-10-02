@@ -29,7 +29,6 @@ runs:
         PUBLISH: ${{ inputs.publish }}
         TARGET: ${{ inputs.target }}
         GPG_KEY: ${{ inputs.gpg-key }}
-        GPG_PASSPHRASE: ${{ inputs.gpg-passphrase }}
         PAGES_TOKEN: ${{ inputs.pages-token }}
         REF: ${{ github.ref }}
         REF_TYPE: ${{ github.ref_type }}
@@ -52,8 +51,8 @@ runs:
         fi
 
         missing=
-        [ -n "$GPG_KEY" ] || missing="$missing RPM_GPG_KEY"
-        [ -n "$GPG_PASSPHRASE" ] || missing="$missing RPM_GPG_PASSPHRASE"
+        # the passphrase is not checked: the packages key is exported without one
+        [ -n "$GPG_KEY" ] || missing="$missing signing-key"
         [ -n "$PAGES_TOKEN" ] || missing="$missing PAGES_TOKEN"
         if [ -n "$missing" ]; then
           echo "::error::missing secrets:$missing -- create them as FreeMixer organisation secrets shared with this repository"

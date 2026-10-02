@@ -5,10 +5,11 @@ description: Sign RPMs and publish them into the rpm/ tree of a FreeMixer Pages 
 # only: publishing a package is a release, never a side effect of a branch push. sign=false assembles an
 # unsigned tree in build/repo and pushes nothing.
 #
-# KEY HONESTY: before signing, the imported key's fingerprint is checked against the public key the channel
-# already serves dnf (rpm/RPM-GPG-KEY-freemixer in the pulled tree, else public-key-url); a mismatch
-# refuses the run rather than sign with a key that gpgcheck=1 clients cannot verify. The first publish into
-# an empty channel has nothing to compare with, says so, and sets the key.
+# KEY HONESTY: before signing, the imported key's fingerprint must be one of the keys the channel already
+# serves dnf (rpm/RPM-GPG-KEY-freemixer in the pulled tree, else public-key-url); otherwise the run refuses
+# rather than sign with a key that gpgcheck=1 clients cannot verify. The first publish into an empty channel
+# has nothing to compare with, says so, and sets the key. The served file only grows (channel-keys.sh): a
+# new signing key is published next to the old one, by hand, BEFORE the first run that signs with it.
 
 inputs:
   rpm-dir:
@@ -70,27 +71,19 @@ runs:
         channel: ${{ inputs.channel }}
         branch: ${{ inputs.branch }}
 
-    - name: Check the signing key is the one the channel serves
+    - name: Check the signing key is one the channel serves
       if: inputs.sign == 'true'
       shell: bash
       env:
         PUBLIC_KEY_URL: ${{ inputs.public-key-url }}
       run: |
         set -o pipefail
-        fpr() { gpg --batch --with-colons --dry-run --import-options import-show --import 2>/dev/null | awk -F: '/^fpr:/ {print $10; exit}'; }
-        if [ -s build/channel/rpm/RPM-GPG-KEY-freemixer ]; then
-          PUB_FPR=$(fpr < build/channel/rpm/RPM-GPG-KEY-freemixer)
-        elif [ -n "$PUBLIC_KEY_URL" ]; then
-          PUB_FPR=$(curl -fsSL "$PUBLIC_KEY_URL" | fpr)
-        else
-          echo "::warning::the channel holds no rpm public key yet: this publish sets it to $FREEMIXER_GPG_KEY_ID"
-          exit 0
+        keys=build/channel/rpm/RPM-GPG-KEY-freemixer
+        if [ ! -s "$keys" ] && [ -n "$PUBLIC_KEY_URL" ]; then
+          keys=$(mktemp)
+          curl -fsSL "$PUBLIC_KEY_URL" > "$keys"
         fi
-        test -n "$PUB_FPR" || { echo "::error::no fingerprint readable from the channel's public key"; exit 1; }
-        if [ "$PUB_FPR" != "$FREEMIXER_GPG_KEY_ID" ]; then
-          echo "::error::RPM_GPG_KEY ($FREEMIXER_GPG_KEY_ID) is not the key the channel serves ($PUB_FPR) -- refusing to sign"
-          exit 1
-        fi
+        "$GITHUB_ACTION_PATH/../import-gpg-key/channel-keys.sh" check "$keys" "$FREEMIXER_GPG_KEY_ID"
 
     - name: Assemble the tree
       shell: bash

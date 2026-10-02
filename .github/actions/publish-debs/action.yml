@@ -4,8 +4,10 @@ description: Sign DEBs and publish them into the deb/ tree of a FreeMixer Pages 
 # The DEB half of a release, run in a Debian container by the reusable build-deb workflow on a release tag
 # only. The tree is one flat apt repository per Debian release, deb/debian/<suite>/, holding <arch>/*.deb,
 # Packages, Release, InRelease and Release.gpg; users point apt at it with `deb [signed-by=...] <url> ./`.
-# The key is the one that signs the RPMs. sign=false assembles an unsigned tree in build/repo and pushes
-# nothing. The shared-tree race is described in channel-pull.
+# The key is the one that signs the RPMs. cosign-key, when set, also signs Release.gpg and InRelease: a key
+# change for apt users, whose signed-by file holds the key they saved at install time (publish-tree.sh).
+# sign=false assembles an unsigned tree in build/repo and pushes nothing. The shared-tree race is described
+# in channel-pull.
 
 inputs:
   deb-dir:
@@ -20,6 +22,11 @@ inputs:
   gpg-key:
     default: ''
   gpg-passphrase:
+    default: ''
+  cosign-key:
+    description: a second key that also signs the apt index, armored; empty for none
+    default: ''
+  cosign-passphrase:
     default: ''
   publish-token:
     default: ''
@@ -56,6 +63,13 @@ runs:
         gpg-key: ${{ inputs.gpg-key }}
         gpg-passphrase: ${{ inputs.gpg-passphrase }}
 
+    - uses: FreeMixer/.github/.github/actions/import-gpg-key@main
+      if: inputs.sign == 'true' && inputs.cosign-key != ''
+      with:
+        gpg-key: ${{ inputs.cosign-key }}
+        gpg-passphrase: ${{ inputs.cosign-passphrase }}
+        id-variable: FREEMIXER_GPG_COSIGN_KEY_ID
+
     - uses: FreeMixer/.github/.github/actions/channel-pull@main
       if: inputs.sign == 'true'
       with:
@@ -63,22 +77,14 @@ runs:
         channel: ${{ inputs.channel }}
         branch: ${{ inputs.branch }}
 
-    - name: Check the signing key is the one the channel serves
+    - name: Check the signing keys are ones the channel serves
       if: inputs.sign == 'true'
       shell: bash
       run: |
         set -o pipefail
-        if [ ! -s build/channel/deb/freemixer.asc ]; then
-          echo "::warning::the channel holds no apt public key yet: this publish sets it to $FREEMIXER_GPG_KEY_ID"
-          exit 0
-        fi
-        PUB_FPR=$(gpg --batch --with-colons --dry-run --import-options import-show --import < build/channel/deb/freemixer.asc 2>/dev/null \
-          | awk -F: '/^fpr:/ {print $10; exit}')
-        test -n "$PUB_FPR" || { echo "::error::no fingerprint readable from the channel's apt key"; exit 1; }
-        if [ "$PUB_FPR" != "$FREEMIXER_GPG_KEY_ID" ]; then
-          echo "::error::RPM_GPG_KEY ($FREEMIXER_GPG_KEY_ID) is not the key the channel serves ($PUB_FPR) -- refusing to sign"
-          exit 1
-        fi
+        # shellcheck disable=SC2086 # the co-signer is one fingerprint or empty
+        "$GITHUB_ACTION_PATH/../import-gpg-key/channel-keys.sh" check build/channel/deb/freemixer.asc \
+          "$FREEMIXER_GPG_KEY_ID" ${FREEMIXER_GPG_COSIGN_KEY_ID:-}
 
     - name: Assemble the tree
       shell: bash
@@ -90,7 +96,7 @@ runs:
       run: |
         set -o pipefail
         if [ "$SIGN" = true ]; then
-          "$GITHUB_ACTION_PATH/publish-tree.sh" build/channel/deb "$DEB_DIR" "$FREEMIXER_GPG_KEY_ID"
+          COSIGN=${FREEMIXER_GPG_COSIGN_KEY_ID:-} "$GITHUB_ACTION_PATH/publish-tree.sh" build/channel/deb "$DEB_DIR" "$FREEMIXER_GPG_KEY_ID"
         else
           "$GITHUB_ACTION_PATH/publish-tree.sh" build/repo/deb "$DEB_DIR"
         fi
