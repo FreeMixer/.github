@@ -62,7 +62,7 @@ for dest in "${!dirs[@]}"; do
     echo "repodata ${dest#"$tree"/}"
 done
 
+# the key file is what the channel served plus the signing key, never the signing key alone (channel-keys.sh)
 if [ -n "$key" ]; then
-    gpg --armor --export "$key" > "$tree/RPM-GPG-KEY-freemixer"
-    [ -s "$tree/RPM-GPG-KEY-freemixer" ] || { echo "exporting $key gave an empty key file" >&2; exit 1; }
+    "$(dirname "$(readlink -f "$0")")/../import-gpg-key/channel-keys.sh" serve "$tree/RPM-GPG-KEY-freemixer" "$key"
 fi
