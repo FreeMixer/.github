@@ -30,6 +30,10 @@ name: Build RPM (reusable)
 on:
   workflow_call:
     inputs:
+      runner:
+        type: string
+        default: 'ubuntu-latest'
+        description: 'Runner label for the x86 jobs (a private repo passes its own runners, e.g. arc-freemixer; arm builds keep ubuntu-24.04-arm)'
       package-name:
         required: true
         type: string
@@ -88,7 +92,7 @@ jobs:
   # Fails a release before any build minutes are spent, and says what is missing.
   preflight:
     name: Check the release can publish
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 5
     steps:
       - uses: FreeMixer/.github/.github/actions/release-preflight@main
@@ -101,7 +105,7 @@ jobs:
   build:
     name: Build (fc${{ inputs.fedora-version }}, ${{ matrix.arch }})
     needs: preflight
-    runs-on: ${{ matrix.arch == 'aarch64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    runs-on: ${{ matrix.arch == 'aarch64' && 'ubuntu-24.04-arm' || inputs.runner }}
     timeout-minutes: 45
     container:
       image: fedora:${{ inputs.fedora-version }}
@@ -197,7 +201,7 @@ jobs:
   publish:
     name: Sign and publish
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 30
     container:
       image: fedora:${{ inputs.fedora-version }}
@@ -250,7 +254,7 @@ jobs:
     name: GitHub release
     needs: publish
     if: inputs.publish && inputs.create-github-release && github.ref_type == 'tag'
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 10
     permissions:
       contents: write

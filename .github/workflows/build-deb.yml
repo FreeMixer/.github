@@ -28,6 +28,10 @@ name: Build DEB (reusable)
 on:
   workflow_call:
     inputs:
+      runner:
+        type: string
+        default: 'ubuntu-latest'
+        description: 'Runner label for the x86 jobs (a private repo passes its own runners, e.g. arc-freemixer; arm builds keep ubuntu-24.04-arm)'
       package-name:
         required: true
         type: string
@@ -93,7 +97,7 @@ defaults:
 jobs:
   preflight:
     name: Check the release can publish
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 5
     steps:
       - uses: FreeMixer/.github/.github/actions/release-preflight@main
@@ -106,7 +110,7 @@ jobs:
   build:
     name: Build (${{ matrix.suite }}, ${{ matrix.arch }})
     needs: preflight
-    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || inputs.runner }}
     timeout-minutes: 45
     container:
       image: debian:${{ matrix.suite }}
@@ -183,7 +187,7 @@ jobs:
   publish:
     name: Sign and publish
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 30
     container:
       image: debian:trixie
@@ -240,7 +244,7 @@ jobs:
     name: GitHub release
     needs: publish
     if: inputs.publish && inputs.create-github-release && github.ref_type == 'tag'
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 10
     permissions:
       contents: write
