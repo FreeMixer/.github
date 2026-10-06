@@ -4,6 +4,9 @@ description: Commit what the tree scripts changed in build/channel and push it
 inputs:
   publish-token:
     required: true
+  site-gpg-key:
+    description: the SITE_GPG_KEY organisation secret, armored; every commit this action makes is signed with it
+    required: true
   channel:
     required: true
   branch:
@@ -21,6 +24,7 @@ runs:
     - shell: bash
       env:
         PUBLISH_TOKEN: ${{ inputs.publish-token }}
+        SITE_GPG_KEY: ${{ inputs.site-gpg-key }}
         BRANCH: ${{ inputs.branch }}
         CHANNEL: ${{ inputs.channel }}
         TAG: ${{ inputs.tag }}
@@ -32,10 +36,18 @@ runs:
           echo "the channel already carries this exact tree -- nothing to push"
           exit 0
         fi
+        # Signed or nothing: the key goes into a private keyring (never the RPM signing keyring), and a
+        # commit that cannot be signed stops the publish before the push.
+        test -n "$SITE_GPG_KEY" || { echo "::error::SITE_GPG_KEY is not set; the channel commit must be signed"; exit 1; }
+        export GNUPGHOME="$RUNNER_TEMP/site-gnupg"; rm -rf "$GNUPGHOME"; mkdir -m 700 "$GNUPGHOME"
+        printf '%s\n' "$SITE_GPG_KEY" | gpg --batch --quiet --import
+        SITE_KEY_ID=$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr:/ {print $10; exit}')
+        test -n "$SITE_KEY_ID" || { echo "::error::no secret key imported from SITE_GPG_KEY"; exit 1; }
         git -C build/channel -c user.name="Pau Aliagas" -c user.email=linuxnow@gmail.com \
-          commit -q -m "$WHAT: publish $TAG (${GITHUB_REPOSITORY##*/})"
+          -c user.signingkey="$SITE_KEY_ID" commit -q -S -m "$WHAT: publish $TAG (${GITHUB_REPOSITORY##*/})"
         auth=$(printf 'x-access-token:%s' "$PUBLISH_TOKEN" | base64 -w0)
         echo "::add-mask::$auth"
         git -C build/channel -c http.https://github.com/.extraheader="AUTHORIZATION: basic $auth" \
           push origin "HEAD:refs/heads/$BRANCH"
+        gpgconf --kill gpg-agent || true; rm -rf "$GNUPGHOME"
         echo "published $TAG to $CHANNEL@$BRANCH"
