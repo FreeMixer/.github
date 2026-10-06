@@ -120,6 +120,7 @@ jobs:
           sign: ${{ env.DO_PUBLISH }}
           gpg-key: ${{ secrets.OPENMIXER_PACKAGES_SIGNING_KEY }}
           publish-token: ${{ secrets.PAGES_TOKEN }}
+          site-gpg-key: ${{ secrets.SITE_GPG_KEY }}
 
       - uses: actions/upload-artifact@v4
         if: env.DO_PUBLISH != 'true'

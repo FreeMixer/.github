@@ -83,6 +83,8 @@ on:
         required: false
       PAGES_TOKEN:
         required: false
+      SITE_GPG_KEY:
+        required: false
 
 defaults:
   run:
@@ -226,6 +228,7 @@ jobs:
           sign: ${{ env.DO_PUBLISH }}
           gpg-key: ${{ secrets.OPENMIXER_PACKAGES_SIGNING_KEY }}
           publish-token: ${{ secrets.PAGES_TOKEN }}
+          site-gpg-key: ${{ secrets.SITE_GPG_KEY }}
           channel: ${{ inputs.target-repo }}
           base-url: ${{ inputs.base-url }}
 

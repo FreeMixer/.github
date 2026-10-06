@@ -111,6 +111,7 @@ jobs:
           cosign-key: ${{ secrets.RPM_GPG_KEY }}
           cosign-passphrase: ${{ secrets.RPM_GPG_PASSPHRASE }}
           publish-token: ${{ secrets.PAGES_TOKEN }}
+          site-gpg-key: ${{ secrets.SITE_GPG_KEY }}
 
       - uses: actions/upload-artifact@v4
         if: env.DO_PUBLISH != 'true'

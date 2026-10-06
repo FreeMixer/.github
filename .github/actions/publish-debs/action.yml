@@ -30,6 +30,9 @@ inputs:
     default: ''
   publish-token:
     default: ''
+  site-gpg-key:
+    description: the SITE_GPG_KEY secret, armored; signs the channel commit
+    default: ''
   channel:
     default: FreeMixer/freemixer.github.io
   branch:
@@ -136,6 +139,7 @@ runs:
       if: inputs.sign == 'true'
       with:
         publish-token: ${{ inputs.publish-token }}
+        site-gpg-key: ${{ inputs.site-gpg-key }}
         channel: ${{ inputs.channel }}
         branch: ${{ inputs.branch }}
         tag: ${{ inputs.tag }}
