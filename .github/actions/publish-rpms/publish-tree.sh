@@ -1,6 +1,7 @@
 #!/bin/bash
 # Add RPMs to a dnf tree laid out as <tree>/fedora/<releasever>/<arch>/ (sources in SRPMS), sign what is
-# unsigned, regenerate the metadata of every directory that holds packages and sign it.
+# unsigned, regenerate the metadata of every directory that holds packages (with an updateinfo.xml of one
+# advisory per release, made from the packages' %changelog) and sign it.
 #
 #   publish-tree.sh <tree> <rpm dir> [<gpg key id>]     no key id: an unsigned tree, for inspection only
 #
@@ -54,6 +55,18 @@ fi
 while IFS= read -r d; do dirs[$d]=1; done < <(find "$tree" -name '*.rpm' -printf '%h\n' | sort -u)
 for dest in "${!dirs[@]}"; do
     if [ -d "$dest/repodata" ]; then createrepo_c --update --quiet "$dest"; else createrepo_c --quiet "$dest"; fi
+    # the advisories of the releases this directory holds, from the packages' own changelogs, so that
+    # `dnf updateinfo` and `dnf check-update --changelogs` tell a user what an update brings
+    if find "$dest" -maxdepth 1 -name '*.rpm' ! -name '*.src.rpm' -print -quit | grep -q .; then
+        # createrepo_c --update keeps the record of the last publish: drop it, the new one replaces it
+        if grep -q 'type="updateinfo"' "$dest/repodata/repomd.xml"; then
+            modifyrepo_c --remove updateinfo "$dest/repodata" >/dev/null
+        fi
+        updateinfo=$(mktemp -d)
+        "$(dirname "$(readlink -f "$0")")/updateinfo.py" "$dest" "$updateinfo/updateinfo.xml"
+        modifyrepo_c --mdtype=updateinfo "$updateinfo/updateinfo.xml" "$dest/repodata" >/dev/null
+        rm -rf "$updateinfo"
+    fi
     rm -f "$dest/repodata/repomd.xml.asc"
     if [ -n "$key" ]; then
         gpg --batch --yes --armor --detach-sign --local-user "$key" \
