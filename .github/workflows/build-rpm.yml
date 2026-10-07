@@ -198,7 +198,9 @@ jobs:
           if [ "$ARCH" != "$FIRST_ARCH" ]; then
             rm -f release/*.src.rpm release/*.noarch.rpm
           fi
-          ls release/*.rpm | sort | tee release.txt
+          # a package whose every binary is noarch stages nothing on a later architecture: that job
+          # uploads nothing, and the first architecture's job carries the release
+          find release -name '*.rpm' | sort | tee release.txt
           # a noarch binary ships from the first architecture only, so a later one may stage fewer
           staged=0
           for bin in ${BINARIES:-$NAME}; do
@@ -213,7 +215,7 @@ jobs:
         with:
           name: ${{ inputs.package-name }}-rpms-${{ matrix.arch }}
           path: release/*.rpm
-          if-no-files-found: error
+          if-no-files-found: ${{ matrix.arch == fromJSON(inputs.arch-matrix)[0] && 'error' || 'ignore' }}
           retention-days: 30
 
   publish:
