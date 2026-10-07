@@ -50,7 +50,7 @@ runs:
   steps:
     - name: Install the packaging tools
       shell: bash
-      run: dnf install -y --setopt=install_weak_deps=False createrepo_c rpm-sign gnupg2 pinentry findutils git curl
+      run: dnf install -y --setopt=install_weak_deps=False createrepo_c rpm-sign gnupg2 pinentry findutils git curl python3-rpm
 
     - name: Prove the packages are there before anything signs them
       shell: bash
