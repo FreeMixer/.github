@@ -22,9 +22,36 @@ src=${2:?usage: publish-tree.sh <tree> <deb dir> [<gpg key id>]}
 key=${3:-}
 requires=${REQUIRES:-}
 cosign=${COSIGN:-}
+# CHANGELOGS_URL is where the tree's changelogs/ directory is served; empty leaves the Release file without a Changelogs field
+changelogs=${CHANGELOGS_URL:+${CHANGELOGS_URL%/}/@CHANGEPATH@_changelog}
 [ -z "$cosign" ] || [ -n "$key" ] || { echo "COSIGN needs a signing key" >&2; exit 1; }
 signers=()
 for k in $key $cosign; do signers+=(--local-user "$k"); done
+
+# apt changelog for a version that is not installed yet asks the Changelogs: URL of the Release file for
+# <source>_<version>_changelog under CHANGEPATH (prefix/source (a flat repository has no component)). The text is the package's own
+# changelog, the one the .deb carries for apt-listchanges and for the installed version. A file already
+# there is kept: a published version's changelog does not change.
+place_changelog() {
+    local deb=$1 pkg ver srcfield source srcver prefix dir member
+    pkg=$(dpkg-deb -f "$deb" Package)
+    ver=$(dpkg-deb -f "$deb" Version)
+    srcfield=$(dpkg-deb -f "$deb" Source 2>/dev/null || true)
+    source=${srcfield%% *}
+    source=${source:-$pkg}
+    case $srcfield in *"("*")"*) srcver=${srcfield#*(}; srcver=${srcver%)*} ;; *) srcver=$ver ;; esac
+    srcver=${srcver#*:}
+    case $source in lib*) prefix=${source:0:4} ;; *) prefix=${source:0:1} ;; esac
+    dir=$tree/changelogs/$prefix/$source
+    [ ! -f "$dir/${source}_${srcver}_changelog" ] || return 0
+    member=$(dpkg-deb --fsys-tarfile "$deb" | tar -t | sed 's|^\./||' |
+        grep -xE "usr/share/doc/$pkg/changelog(\.Debian)?\.gz" | sort | head -1 || true)
+    # a package whose doc directory links to another package's carries no changelog of its own
+    [ -n "$member" ] || return 0
+    mkdir -p "$dir"
+    dpkg-deb --fsys-tarfile "$deb" | tar -xO "./$member" | gzip -dc > "$dir/${source}_${srcver}_changelog"
+    echo "changelog $source $srcver"
+}
 
 mapfile -t found < <(find "$src" -name '*.deb' | sort)
 [ "${#found[@]}" -gt 0 ] || { echo "no deb under $src" >&2; exit 1; }
@@ -44,6 +71,9 @@ for f in "${found[@]}"; do
         echo "placed $(basename "$f") in debian/$suite/$arch"
     fi
 done
+
+# every package of the tree, so a release published before the Changelogs field existed gets its file too
+while IFS= read -r f; do place_changelog "$f"; done < <(find "$tree/debian" -name '*.deb' | sort)
 
 for cell in "${!cells[@]}"; do
     # an Architecture: all package installs beside the arch cells, which hold the required libraries
@@ -68,6 +98,10 @@ for suitedir in "$tree"/debian/*/; do
             -o APT::FTPArchive::Release::Suite="$suite" -o APT::FTPArchive::Release::Codename="$suite" \
             -o APT::FTPArchive::Release::Architectures="${archs% }" \
             release . > "$release"
+        # where apt changelog finds the changelog of a version it has not installed (place_changelog)
+        if [ -n "$changelogs" ]; then
+            sed -i "/^Architectures:/a Changelogs: $changelogs" "$release"
+        fi
         cat "$release" > Release
         rm -f "$release"
         if [ -n "$key" ]; then
