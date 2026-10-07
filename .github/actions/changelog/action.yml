@@ -1,0 +1,50 @@
+name: changelog
+description: Check that CHANGELOG.md and the files generated from it agree, or write the release notes of a version
+
+# CHANGELOG.md is the one human changelog of a repository (docs/packaging-changelog.md). mode check refuses
+# a tree whose spec %changelog or debian/changelog is not what CHANGELOG.md generates, and, with a tag, a
+# tag whose version has no entry. mode notes writes the entry of the tag's version as the GitHub release
+# notes. The caller has checked the repository out; a tag needs the tag's commit.
+
+inputs:
+  mode:
+    description: check or notes
+    default: check
+  tree:
+    description: the checkout
+    default: .
+  tag:
+    description: release tag; empty checks the tree alone
+    default: ''
+  spec:
+    description: the spec, relative to the tree, when it is not the only packaging/*.spec
+    default: ''
+  notes-file:
+    description: mode notes, where the release notes are written
+    default: release-notes.md
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        MODE: ${{ inputs.mode }}
+        TREE: ${{ inputs.tree }}
+        TAG: ${{ inputs.tag }}
+        SPEC: ${{ inputs.spec }}
+        NOTES: ${{ inputs.notes-file }}
+      run: |
+        set -euo pipefail
+        args=(-C "$TREE")
+        [ -z "$SPEC" ] || args+=(-s "$SPEC")
+        case "$MODE" in
+          check)
+            [ -z "$TAG" ] || args+=(-t "$TAG")
+            "$GITHUB_ACTION_PATH/changelog.sh" check "${args[@]}"
+            ;;
+          notes)
+            "$GITHUB_ACTION_PATH/changelog.sh" notes "${args[@]}" "${TAG#v}" > "$NOTES"
+            cat "$NOTES"
+            ;;
+          *) echo "::error::mode is check or notes, not $MODE"; exit 1 ;;
+        esac

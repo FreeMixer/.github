@@ -76,6 +76,10 @@ on:
         type: boolean
         default: true
         description: 'Take Build-Depends Debian does not carry (plugin-hostd-dev) from the channel at base-url'
+      changelog-spec:
+        type: string
+        default: ''
+        description: 'The spec, relative to the repository, when it is not the only packaging/*.spec'
       create-github-release:
         type: boolean
         default: true
@@ -102,6 +106,18 @@ jobs:
     runs-on: ${{ inputs.runner }}
     timeout-minutes: 5
     steps:
+      # the changelog is the release's one source: a tag whose version has no entry, or a spec or
+      # debian/changelog that CHANGELOG.md does not generate, stops here (docs/packaging-changelog.md)
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - uses: FreeMixer/.github/.github/actions/changelog@main
+        with:
+          tag: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+          spec: ${{ inputs.changelog-spec }}
+
       - uses: FreeMixer/.github/.github/actions/release-preflight@main
         with:
           publish: ${{ inputs.publish }}
@@ -218,6 +234,7 @@ jobs:
           site-gpg-key: ${{ secrets.SITE_GPG_KEY }}
           channel: ${{ inputs.target-repo }}
           requires: ${{ inputs.requires }}
+          changelogs-url: ${{ inputs.base-url }}/deb/changelogs
 
       - uses: actions/upload-artifact@v4
         if: env.DO_PUBLISH == 'true'
@@ -252,6 +269,15 @@ jobs:
     permissions:
       contents: write
     steps:
+      # the release notes are the CHANGELOG.md entry of the version, not GitHub's list of merged pull requests
+      - uses: actions/checkout@v4
+
+      - uses: FreeMixer/.github/.github/actions/changelog@main
+        with:
+          mode: notes
+          tag: ${{ github.ref_name }}
+          notes-file: ${{ runner.temp }}/release-notes.md
+
       - uses: actions/download-artifact@v4
         with:
           pattern: ${{ inputs.package-name }}-debs-*
@@ -274,7 +300,7 @@ jobs:
           test -n "$(ls assets)" || { echo "::error::no DEB to attach"; exit 1; }
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$TAG" assets/*.deb --clobber --repo "$GITHUB_REPOSITORY"
-          elif gh release create "$TAG" assets/*.deb --title "$TAG" --generate-notes --repo "$GITHUB_REPOSITORY"; then
+          elif gh release create "$TAG" assets/*.deb --title "$TAG" --notes-file "$RUNNER_TEMP/release-notes.md" --repo "$GITHUB_REPOSITORY"; then
             :
           else
             # lost the race to the RPM job
