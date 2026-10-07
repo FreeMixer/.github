@@ -40,6 +40,9 @@ inputs:
   requires:
     description: packages the tree must already serve, for every suite and architecture published here, space separated
     default: ''
+  changelogs-url:
+    description: where the channel's deb/changelogs/ directory is served, for the Changelogs field of the Release files; empty leaves the field out
+    default: https://freemixer.github.io/deb/changelogs
   signed-dir:
     description: directory receiving the published copies, laid out <suite>/*.deb
     default: signed
@@ -96,6 +99,7 @@ runs:
         SIGN: ${{ inputs.sign }}
         # only a publish is held to what the channel serves; a dry run has no channel tree to ask
         REQUIRES: ${{ inputs.sign == 'true' && inputs.requires || '' }}
+        CHANGELOGS_URL: ${{ inputs.changelogs-url }}
       run: |
         set -o pipefail
         if [ "$SIGN" = true ]; then
