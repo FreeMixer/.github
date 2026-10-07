@@ -208,6 +208,13 @@ jobs:
           done
           if [ "$ARCH" = "$FIRST_ARCH" ]; then
             [ "$staged" -eq "$(echo ${BINARIES:-$NAME} | wc -w)" ] || { echo "::error::not every binary RPM (${BINARIES:-$NAME}) is among the staged RPMs"; exit 1; }
+          else
+            # a later architecture may stage nothing only when every binary it built is noarch
+            for bin in ${BINARIES:-$NAME}; do
+              if find rpms -name "$bin-[0-9]*.$ARCH.rpm" | grep -q . && ! grep -q "/$bin-[0-9]" release.txt; then
+                echo "::error::$bin built for $ARCH but was not staged"; exit 1
+              fi
+            done
           fi
 
       # mod-host and its protocol library are built to satisfy BuildRequires and are not part of the release
