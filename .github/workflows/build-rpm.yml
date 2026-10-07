@@ -198,7 +198,9 @@ jobs:
           if [ "$ARCH" != "$FIRST_ARCH" ]; then
             rm -f release/*.src.rpm release/*.noarch.rpm
           fi
-          ls release/*.rpm | sort | tee release.txt
+          # a package whose every binary is noarch stages nothing on a later architecture: that job
+          # uploads nothing, and the first architecture's job carries the release
+          find release -name '*.rpm' | sort | tee release.txt
           # a noarch binary ships from the first architecture only, so a later one may stage fewer
           staged=0
           for bin in ${BINARIES:-$NAME}; do
@@ -206,6 +208,13 @@ jobs:
           done
           if [ "$ARCH" = "$FIRST_ARCH" ]; then
             [ "$staged" -eq "$(echo ${BINARIES:-$NAME} | wc -w)" ] || { echo "::error::not every binary RPM (${BINARIES:-$NAME}) is among the staged RPMs"; exit 1; }
+          else
+            # a later architecture may stage nothing only when every binary it built is noarch
+            for bin in ${BINARIES:-$NAME}; do
+              if find rpms -name "$bin-[0-9]*.$ARCH.rpm" | grep -q . && ! grep -q "/$bin-[0-9]" release.txt; then
+                echo "::error::$bin built for $ARCH but was not staged"; exit 1
+              fi
+            done
           fi
 
       # mod-host and its protocol library are built to satisfy BuildRequires and are not part of the release
@@ -213,7 +222,7 @@ jobs:
         with:
           name: ${{ inputs.package-name }}-rpms-${{ matrix.arch }}
           path: release/*.rpm
-          if-no-files-found: error
+          if-no-files-found: ${{ matrix.arch == fromJSON(inputs.arch-matrix)[0] && 'error' || 'ignore' }}
           retention-days: 30
 
   publish:
