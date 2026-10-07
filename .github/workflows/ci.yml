@@ -2,7 +2,9 @@ name: ci
 
 # The publish scripts and the key import, exercised the way a release uses them, with throwaway keys: a
 # channel signed by one key, a second key served next to it, a publish signed by the second key, and a
-# client that only ever held the first (tests/key-transition.sh).
+# client that only ever held the first (tests/key-transition.sh). The changelog generator and checks, and
+# what the channel publish adds from them: an updateinfo.xml for dnf and a Changelogs URL for apt
+# (docs/packaging-changelog.md).
 
 on:
   pull_request:
@@ -25,7 +27,7 @@ jobs:
         include:
           - kind: rpm
             image: fedora:44
-            tools: dnf install -y --setopt=install_weak_deps=False rpm-build rpm-sign createrepo_c gnupg2 pinentry findutils
+            tools: dnf install -y --setopt=install_weak_deps=False rpm-build rpm-sign createrepo_c python3-rpm gnupg2 pinentry findutils
           - kind: deb
             image: debian:trixie
             tools: apt-get update -qq && apt-get install -y --no-install-recommends apt-utils gnupg gpgv dpkg-dev
@@ -59,3 +61,33 @@ jobs:
       - name: Publish across the key change
         shell: bash
         run: tests/key-transition.sh ${{ matrix.kind }}
+
+  changelog:
+    name: CHANGELOG.md generator and checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: tests/changelog.sh
+
+  updateinfo:
+    name: dnf updateinfo from the packages' changelogs
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: fedora:44
+    steps:
+      - run: dnf install -y --setopt=install_weak_deps=False rpm-build createrepo_c python3-rpm dnf5 findutils
+      - uses: actions/checkout@v4
+      - run: tests/updateinfo.sh
+
+  deb-changelog:
+    name: apt changelog from the published tree
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: debian:trixie
+    steps:
+      - run: apt-get update -qq && apt-get install -y --no-install-recommends apt-utils dpkg-dev debhelper build-essential python3 apt ca-certificates
+      - uses: actions/checkout@v4
+      - run: tests/deb-changelog.sh
