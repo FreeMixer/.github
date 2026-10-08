@@ -193,14 +193,15 @@ jobs:
         env:
           BASE_URL: ${{ inputs.base-url }}
         run: |
-          dnf config-manager addrepo --from-repofile="$BASE_URL/rpm/freemixer.repo"
+          echo 'retries=10' >> /etc/dnf/dnf.conf
+          dnf config-manager addrepo --setopt=retries=10 --from-repofile="$BASE_URL/rpm/freemixer.repo"
           # -devel packages are noarch, in a tree of their own; a .repo published before it named that tree lacks it
           grep -q '^\[freemixer-noarch\]' /etc/yum.repos.d/freemixer.repo ||
             printf '%s\n' '' '[freemixer-noarch]' 'name=FreeMixer (noarch)' \
               "baseurl=$BASE_URL/rpm/fedora/\$releasever/noarch/" \
               'enabled=1' 'gpgcheck=1' 'repo_gpgcheck=1' \
               "gpgkey=$BASE_URL/rpm/RPM-GPG-KEY-freemixer" >> /etc/yum.repos.d/freemixer.repo
-          dnf -y makecache --repo freemixer --repo freemixer-noarch
+          dnf -y --setopt=retries=10 makecache --repo freemixer --repo freemixer-noarch
           dnf repoquery --whatprovides 'pkgconfig(plugin-hostd)'
 
       - uses: FreeMixer/.github/.github/actions/build-rpm@v1

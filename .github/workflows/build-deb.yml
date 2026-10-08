@@ -201,9 +201,10 @@ jobs:
         run: |
           apt-get install -y --no-install-recommends curl
           install -d /etc/apt/keyrings
-          curl -fsSL -o /etc/apt/keyrings/freemixer.asc "$URL/freemixer.asc"
+          curl -fsSL --retry 5 --retry-all-errors --retry-delay 3 --connect-timeout 20 -o /etc/apt/keyrings/freemixer.asc "$URL/freemixer.asc"
           echo "deb [signed-by=/etc/apt/keyrings/freemixer.asc] $URL/debian/$SUITE ./" > /etc/apt/sources.list.d/freemixer.list
-          apt-get update -qq
+          echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80freemixer-retries
+          apt-get -o Acquire::Retries=5 update -qq
 
       - uses: FreeMixer/.github/.github/actions/build-deb@v1
         with:

@@ -62,7 +62,7 @@ runs:
           exit 1
         fi
 
-        status=$(curl -s -o /tmp/target.json -w '%{http_code}' \
+        status=$(curl -s --retry 5 --retry-all-errors --retry-delay 3 --connect-timeout 20 -o /tmp/target.json -w '%{http_code}' \
           -H "Authorization: Bearer $PAGES_TOKEN" -H "Accept: application/vnd.github+json" \
           "https://api.github.com/repos/$TARGET")
         if [ "$status" != 200 ]; then

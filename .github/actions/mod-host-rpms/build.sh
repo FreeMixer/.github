@@ -10,8 +10,8 @@ top=$(mktemp -d)
 mkdir -p "$top/SOURCES" "$top/SPECS" "$out"
 
 base=https://raw.githubusercontent.com/linuxnow/fedora-spec/$ref/moddevices
-for f in mod-host.spec mod-host.service $(curl -fsSL "$base/mod-host.spec" | sed -n 's/^Patch[0-9]*: *//p'); do
-    curl -fsSL "$base/$f" -o "$top/SOURCES/$f"
+for f in mod-host.spec mod-host.service $(curl -fsSL --retry 5 --retry-all-errors --retry-delay 3 --connect-timeout 20 "$base/mod-host.spec" | sed -n 's/^Patch[0-9]*: *//p'); do
+    curl -fsSL --retry 5 --retry-all-errors --retry-delay 3 --connect-timeout 20 "$base/$f" -o "$top/SOURCES/$f"
 done
 mv "$top/SOURCES/mod-host.spec" "$top/SPECS/"
 if [ -n "${RELEASE:-}" ]; then

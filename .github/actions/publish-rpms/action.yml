@@ -84,7 +84,7 @@ runs:
         keys=build/channel/rpm/RPM-GPG-KEY-freemixer
         if [ ! -s "$keys" ] && [ -n "$PUBLIC_KEY_URL" ]; then
           keys=$(mktemp)
-          curl -fsSL "$PUBLIC_KEY_URL" > "$keys"
+          curl -fsSL --retry 5 --retry-all-errors --retry-delay 3 --connect-timeout 20 "$PUBLIC_KEY_URL" > "$keys"
         fi
         "$GITHUB_ACTION_PATH/../import-gpg-key/channel-keys.sh" check "$keys" "$FREEMIXER_GPG_KEY_ID"
 

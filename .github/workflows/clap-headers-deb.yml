@@ -131,7 +131,7 @@ jobs:
           for suite in bookworm trixie; do
             url="https://freemixer.github.io/deb/debian/$suite/Packages"
             for try in $(seq 1 30); do
-              if curl -fsSL -L "$url" | awk -v RS= '/(^|\n)Package: clap-headers(\n|$)/ && /(^|\n)Version: 1\.2\.10-1(\n|$)/ {f=1} END {exit !f}'; then
+              if curl -fsSL --retry 5 --retry-all-errors --retry-delay 3 --connect-timeout 20 -L "$url" | awk -v RS= '/(^|\n)Package: clap-headers(\n|$)/ && /(^|\n)Version: 1\.2\.10-1(\n|$)/ {f=1} END {exit !f}'; then
                 echo "$suite serves clap-headers 1.2.10-1"; ok=$((ok + 1)); break
               fi
               sleep 10
