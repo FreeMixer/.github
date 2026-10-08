@@ -11,6 +11,9 @@ inputs:
   target:
     description: the Pages repository that receives the packages
     required: true
+  tag:
+    description: the tag being released when the run is not on that tag (a release of another repository); empty means the tag of the run
+    default: ''
   require-tag:
     description: a release is a publish on a tag; 'false' lets a workflow that publishes from a branch use this check
     default: 'true'
@@ -31,9 +34,9 @@ runs:
         GPG_KEY: ${{ inputs.gpg-key }}
         PAGES_TOKEN: ${{ inputs.pages-token }}
         REF: ${{ github.ref }}
-        REF_TYPE: ${{ github.ref_type }}
+        REF_TYPE: ${{ inputs.tag != '' && 'tag' || github.ref_type }}
         REQUIRE_TAG: ${{ inputs.require-tag }}
-        TAG: ${{ github.ref_name }}
+        TAG: ${{ inputs.tag || github.ref_name }}
       run: |
         set -euo pipefail
         if [ "$PUBLISH" != true ] || { [ "$REQUIRE_TAG" = true ] && [ "$REF_TYPE" != tag ]; }; then
