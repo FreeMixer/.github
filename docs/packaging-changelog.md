@@ -41,7 +41,9 @@ without a new version, such as openmixer, writes `0.1.0-14`); without a release 
 
 The generated files stay in the repository, so a source tarball builds without the tool, and nobody edits
 them by hand: the check refuses a hand edit the same way it refuses a stale file. The author of the entries
-is `$CHANGELOG_AUTHOR` (Pau Aliagas by default); the Debian date is the entry's date at 12:00 UTC.
+is `$CHANGELOG_AUTHOR` (Pau Aliagas by default); the Debian date is the entry's date at 12:00 UTC. Two entries
+on one date get a minute each, the older at 12:00 and the newer at 12:01, so lintian sees the newer release as
+newer than the one before it.
 
 A repository adopts it by adding `CHANGELOG.md`, running `changelog.sh sync`, and calling the action from
 its `ci.yml`:
