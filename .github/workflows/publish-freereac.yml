@@ -1,0 +1,128 @@
+name: Publish FreeREAC release
+
+# Publishes a FreeREAC release to the FreeMixer channel. The channel is signed by the OpenMixer Release
+# Signing Key, whose secret half is a FreeMixer organisation secret, so the FreeREAC repositories cannot
+# publish to it themselves. This workflow checks the public source out at a tag that already exists and runs
+# the same build-rpm.yml and build-deb.yml jobs the repositories' own release.yml runs, with FreeMixer's
+# secrets. The FreeREAC repositories keep their own CI and tag on their own schedule.
+#
+# publish=false (the default) is a dry run: everything is built and linted and an unsigned tree is attached.
+#
+# ORDER: libreac before reac-pw. reac-pw builds against libreac and libreac-transport from the channel, so
+# publish the libreac version its meson.build asks for first; until then its builds stop at installing them.
+
+on:
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: 'FreeREAC repository to release: FreeREAC/libreac or FreeREAC/reac-pw'
+        required: true
+        type: choice
+        options:
+          - FreeREAC/libreac
+          - FreeREAC/reac-pw
+      tag:
+        description: 'Release tag, v<major>.<minor>.<patch>; it must already exist in the repository'
+        required: true
+        type: string
+      publish:
+        description: 'Sign and publish to the channel. Off is a dry run that publishes nothing.'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  resolve:
+    name: Check the tag, choose the build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      repository: ${{ steps.pick.outputs.repository }}
+      package: ${{ steps.pick.outputs.package }}
+      rpm-binaries: ${{ steps.pick.outputs.rpm-binaries }}
+      deb-binaries: ${{ steps.pick.outputs.deb-binaries }}
+      deb-requires: ${{ steps.pick.outputs.deb-requires }}
+      channel-deps: ${{ steps.pick.outputs.channel-deps }}
+    steps:
+      - name: Check the repository and the tag
+        id: pick
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ inputs.repository }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+
+          # what each repository's own release.yml passes to the reusable workflows
+          case "$REPOSITORY" in
+            FreeREAC/libreac)
+              package=libreac
+              rpm_binaries='libreac libreac-devel libreac-transport libreac-transport-devel'
+              deb_binaries='libreac6 libreac-dev libreac-transport7 libreac-transport-dev'
+              deb_requires=''
+              channel_deps=false ;;
+            FreeREAC/reac-pw)
+              package=reac-pw
+              rpm_binaries=''
+              deb_binaries=''
+              deb_requires='libreac6 libreac-transport7'
+              channel_deps=true ;;
+            *) echo "::error::'$REPOSITORY' is not a FreeREAC repository this workflow releases"; exit 1 ;;
+          esac
+
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::'$TAG' does not match vX.Y.Z"; exit 1; }
+
+          ref=$(gh api "repos/$REPOSITORY/git/ref/tags/$TAG" --jq '.object.type + " " + .object.sha') \
+            || { echo "::error::$REPOSITORY has no tag $TAG"; exit 1; }
+          type=${ref% *}
+          sha=${ref#* }
+          if [ "$type" = tag ]; then
+            # an annotated tag: GitHub says whether its signature verifies against the tagger's key
+            read -r verified reason < <(gh api "repos/$REPOSITORY/git/tags/$sha" --jq '.verification | "\(.verified) \(.reason)"')
+            [ "$verified" = true ] || { echo "::error::the tag $TAG of $REPOSITORY is not verified (reason: $reason)"; exit 1; }
+            commit=$(gh api "repos/$REPOSITORY/git/tags/$sha" --jq .object.sha)
+            echo "::notice::$REPOSITORY $TAG is a signed tag on $commit"
+          else
+            commit=$sha
+            echo "::notice::$REPOSITORY $TAG is a lightweight tag on $commit and carries no signature"
+          fi
+
+          {
+            echo "repository=$REPOSITORY"
+            echo "package=$package"
+            echo "rpm-binaries=$rpm_binaries"
+            echo "deb-binaries=$deb_binaries"
+            echo "deb-requires=$deb_requires"
+            echo "channel-deps=$channel_deps"
+          } >> "$GITHUB_OUTPUT"
+
+  rpm:
+    needs: resolve
+    uses: ./.github/workflows/build-rpm.yml
+    with:
+      package-name: ${{ needs.resolve.outputs.package }}
+      binary-names: ${{ needs.resolve.outputs.rpm-binaries }}
+      publish: ${{ inputs.publish }}
+      needs-mod-host: false
+      channel-deps: ${{ needs.resolve.outputs.channel-deps == 'true' }}
+      source-repository: ${{ needs.resolve.outputs.repository }}
+      source-ref: ${{ inputs.tag }}
+      create-github-release: false
+    secrets: inherit
+
+  deb:
+    needs: resolve
+    uses: ./.github/workflows/build-deb.yml
+    with:
+      package-name: ${{ needs.resolve.outputs.package }}
+      binary-names: ${{ needs.resolve.outputs.deb-binaries }}
+      publish: ${{ inputs.publish }}
+      dependencies: ''
+      requires: ${{ needs.resolve.outputs.deb-requires }}
+      channel-deps: ${{ needs.resolve.outputs.channel-deps == 'true' }}
+      source-repository: ${{ needs.resolve.outputs.repository }}
+      source-ref: ${{ inputs.tag }}
+      create-github-release: false
+    secrets: inherit
