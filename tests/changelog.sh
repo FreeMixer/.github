@@ -114,6 +114,14 @@ cp keep.md CHANGELOG.md
 sed -i 's/^## 1.1.0 - 2026-09-01/## 1.0.0 2026-09-01/' CHANGELOG.md
 expect_fail 'malformed heading' "$tool" check
 cp keep.md CHANGELOG.md
+# a history longer than one pipe buffer: reading only the first entry used to close the pipe on the parser
+# (exit 141, no message under pipefail), by luck of timing
+for i in $(seq 150 -1 1); do printf '\n## 0.%d.0 - 2025-01-01\n\n- An older release, written long enough that the parsed history fills several pipe buffers. Number %d.\n' "$i" "$i" >> CHANGELOG.md; done
+"$tool" sync
+for _ in 1 2 3 4 5 6 7 8 9 10; do expect_ok "$tool" check >/dev/null; done
+echo "ok   a history of 150 older releases checks every time"
+cp keep.md CHANGELOG.md
+"$tool" sync
 rm CHANGELOG.md
 expect_fail 'no CHANGELOG.md' "$tool" check
 echo "changelog tests: all passed"
