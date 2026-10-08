@@ -10,6 +10,16 @@ package's `packaging/*.spec`, and the RPMs are built for x86_64 and aarch64, sig
 `rpm/` tree of the organisation's Pages repository and attached to the GitHub release. Without a tag
 the same workflow is a dry run that publishes nothing.
 
+## Versions
+
+Call the shared workflows and actions by the `v1` tag, never by `main`:
+
+    uses: FreeMixer/.github/.github/workflows/build-rpm.yml@v1
+
+`v1` moves on compatible releases, so a repository on `v1` picks up fixes and additions without an edit.
+`v1.0.0` and every other full version tag never move. A breaking change gets a new major tag, `v2`.
+The shared workflows call their own actions at `v1` too, so a pinned caller runs one consistent version.
+
 ## Why we pin
 
 `pins.txt` names each outside source the packages are built from by its exact commit, not by a branch or a

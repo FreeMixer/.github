@@ -61,13 +61,13 @@ runs:
         find "$RPM_DIR" -name '*.rpm' | sort | tee /tmp/collected.txt
         test -s /tmp/collected.txt || { echo "::error::no RPM under $RPM_DIR"; exit 1; }
 
-    - uses: FreeMixer/.github/.github/actions/import-gpg-key@main
+    - uses: FreeMixer/.github/.github/actions/import-gpg-key@v1
       if: inputs.sign == 'true'
       with:
         gpg-key: ${{ inputs.gpg-key }}
         gpg-passphrase: ${{ inputs.gpg-passphrase }}
 
-    - uses: FreeMixer/.github/.github/actions/channel-pull@main
+    - uses: FreeMixer/.github/.github/actions/channel-pull@v1
       if: inputs.sign == 'true'
       with:
         publish-token: ${{ inputs.publish-token }}
@@ -141,7 +141,7 @@ runs:
         done < <(find "$RPM_DIR" -name '*.rpm' | sort)
         ls "$SIGNED_DIR"
 
-    - uses: FreeMixer/.github/.github/actions/channel-push@main
+    - uses: FreeMixer/.github/.github/actions/channel-push@v1
       if: inputs.sign == 'true'
       with:
         publish-token: ${{ inputs.publish-token }}

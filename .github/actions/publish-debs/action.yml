@@ -63,20 +63,20 @@ runs:
         find "$DEB_DIR" -name '*.deb' | sort | tee /tmp/collected.txt
         test -s /tmp/collected.txt || { echo "::error::no DEB under $DEB_DIR"; exit 1; }
 
-    - uses: FreeMixer/.github/.github/actions/import-gpg-key@main
+    - uses: FreeMixer/.github/.github/actions/import-gpg-key@v1
       if: inputs.sign == 'true'
       with:
         gpg-key: ${{ inputs.gpg-key }}
         gpg-passphrase: ${{ inputs.gpg-passphrase }}
 
-    - uses: FreeMixer/.github/.github/actions/import-gpg-key@main
+    - uses: FreeMixer/.github/.github/actions/import-gpg-key@v1
       if: inputs.sign == 'true' && inputs.cosign-key != ''
       with:
         gpg-key: ${{ inputs.cosign-key }}
         gpg-passphrase: ${{ inputs.cosign-passphrase }}
         id-variable: FREEMIXER_GPG_COSIGN_KEY_ID
 
-    - uses: FreeMixer/.github/.github/actions/channel-pull@main
+    - uses: FreeMixer/.github/.github/actions/channel-pull@v1
       if: inputs.sign == 'true'
       with:
         publish-token: ${{ inputs.publish-token }}
@@ -139,7 +139,7 @@ runs:
         done < <(find "$DEB_DIR" -name '*.deb' | sort)
         ls "$SIGNED_DIR"
 
-    - uses: FreeMixer/.github/.github/actions/channel-push@main
+    - uses: FreeMixer/.github/.github/actions/channel-push@v1
       if: inputs.sign == 'true'
       with:
         publish-token: ${{ inputs.publish-token }}

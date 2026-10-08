@@ -50,7 +50,7 @@ its `ci.yml`:
 
 ```yaml
 - uses: actions/checkout@v4
-- uses: FreeMixer/.github/.github/actions/changelog@main
+- uses: FreeMixer/.github/.github/actions/changelog@v1
 ```
 
 A release is then: add the version's section to `CHANGELOG.md`, run `changelog.sh sync`, bump the version

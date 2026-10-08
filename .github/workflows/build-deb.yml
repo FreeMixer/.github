@@ -5,7 +5,7 @@ name: Build DEB (reusable)
 #
 #   jobs:
 #     deb:
-#       uses: FreeMixer/.github/.github/workflows/build-deb.yml@main
+#       uses: FreeMixer/.github/.github/workflows/build-deb.yml@v1
 #       with: { package-name: plugin-hostd }
 #       secrets: inherit
 #
@@ -123,12 +123,12 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      - uses: FreeMixer/.github/.github/actions/changelog@main
+      - uses: FreeMixer/.github/.github/actions/changelog@v1
         with:
           tag: ${{ inputs.source-ref || (github.ref_type == 'tag' && github.ref_name || '') }}
           spec: ${{ inputs.changelog-spec }}
 
-      - uses: FreeMixer/.github/.github/actions/release-preflight@main
+      - uses: FreeMixer/.github/.github/actions/release-preflight@v1
         with:
           publish: ${{ inputs.publish }}
           tag: ${{ inputs.source-ref }}
@@ -165,7 +165,7 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      - uses: FreeMixer/.github/.github/actions/deb-deps@main
+      - uses: FreeMixer/.github/.github/actions/deb-deps@v1
         with:
           names: ${{ inputs.dependencies }}
 
@@ -182,7 +182,7 @@ jobs:
           echo "deb [signed-by=/etc/apt/keyrings/freemixer.asc] $URL/debian/$SUITE ./" > /etc/apt/sources.list.d/freemixer.list
           apt-get update -qq
 
-      - uses: FreeMixer/.github/.github/actions/build-deb@main
+      - uses: FreeMixer/.github/.github/actions/build-deb@v1
         with:
           tag: ${{ env.RELEASE_TAG }}
 
@@ -234,7 +234,7 @@ jobs:
           merge-multiple: true
           path: collected
 
-      - uses: FreeMixer/.github/.github/actions/publish-debs@main
+      - uses: FreeMixer/.github/.github/actions/publish-debs@v1
         with:
           deb-dir: collected
           tag: ${{ inputs.source-ref || github.ref_name }}
@@ -285,7 +285,7 @@ jobs:
       # the release notes are the CHANGELOG.md entry of the version, not GitHub's list of merged pull requests
       - uses: actions/checkout@v4
 
-      - uses: FreeMixer/.github/.github/actions/changelog@main
+      - uses: FreeMixer/.github/.github/actions/changelog@v1
         with:
           mode: notes
           tag: ${{ github.ref_name }}
