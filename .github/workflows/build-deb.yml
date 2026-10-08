@@ -134,7 +134,7 @@ jobs:
         env:
           WANT: ${{ inputs.source-sha }}
         run: |
-          got=$(git rev-parse HEAD)
+          got=$(git -c safe.directory="$PWD" rev-parse HEAD)
           [ "$got" = "$WANT" ] || { echo "::error::the checkout is $got but the verified tag resolved to $WANT"; exit 1; }
 
       - uses: FreeMixer/.github/.github/actions/changelog@v1
@@ -185,7 +185,7 @@ jobs:
         env:
           WANT: ${{ inputs.source-sha }}
         run: |
-          got=$(git rev-parse HEAD)
+          got=$(git -c safe.directory="$PWD" rev-parse HEAD)
           [ "$got" = "$WANT" ] || { echo "::error::the checkout is $got but the verified tag resolved to $WANT"; exit 1; }
 
       - uses: FreeMixer/.github/.github/actions/deb-deps@v1
