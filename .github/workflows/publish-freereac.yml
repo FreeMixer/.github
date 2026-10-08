@@ -31,7 +31,7 @@ on:
         default: false
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   resolve:
@@ -45,6 +45,7 @@ jobs:
       deb-binaries: ${{ steps.pick.outputs.deb-binaries }}
       deb-requires: ${{ steps.pick.outputs.deb-requires }}
       channel-deps: ${{ steps.pick.outputs.channel-deps }}
+      commit: ${{ steps.pick.outputs.commit }}
     steps:
       - name: Check the repository and the tag
         id: pick
@@ -78,16 +79,14 @@ jobs:
             || { echo "::error::$REPOSITORY has no tag $TAG"; exit 1; }
           type=${ref% *}
           sha=${ref#* }
-          if [ "$type" = tag ]; then
-            # an annotated tag: GitHub says whether its signature verifies against the tagger's key
-            read -r verified reason < <(gh api "repos/$REPOSITORY/git/tags/$sha" --jq '.verification | "\(.verified) \(.reason)"')
-            [ "$verified" = true ] || { echo "::error::the tag $TAG of $REPOSITORY is not verified (reason: $reason)"; exit 1; }
-            commit=$(gh api "repos/$REPOSITORY/git/tags/$sha" --jq .object.sha)
-            echo "::notice::$REPOSITORY $TAG is a signed tag on $commit"
-          else
-            commit=$sha
-            echo "::notice::$REPOSITORY $TAG is a lightweight tag on $commit and carries no signature"
-          fi
+          # only an annotated tag carries a signature: a lightweight tag is a bare ref anyone with push access can move
+          [ "$type" = tag ] || { echo "::error::the tag $TAG of $REPOSITORY is lightweight; release from an annotated, signed tag"; exit 1; }
+          # GitHub says whether the signature verifies against the tagger's key
+          read -r verified reason < <(gh api "repos/$REPOSITORY/git/tags/$sha" --jq '.verification | "\(.verified) \(.reason)"')
+          [ "$verified" = true ] || { echo "::error::the tag $TAG of $REPOSITORY is not verified (reason: $reason)"; exit 1; }
+          read -r otype commit < <(gh api "repos/$REPOSITORY/git/tags/$sha" --jq '.object.type + " " + .object.sha')
+          [ "$otype" = commit ] || { echo "::error::the tag $TAG of $REPOSITORY points at a $otype, not a commit"; exit 1; }
+          echo "::notice::$REPOSITORY $TAG is a verified annotated tag on $commit"
 
           {
             echo "repository=$REPOSITORY"
@@ -96,10 +95,15 @@ jobs:
             echo "deb-binaries=$deb_binaries"
             echo "deb-requires=$deb_requires"
             echo "channel-deps=$channel_deps"
+            echo "commit=$commit"
           } >> "$GITHUB_OUTPUT"
 
   rpm:
     needs: resolve
+    # GitHub checks the called workflow's release job (contents: write) against this job's grant even though
+    # create-github-release is false and that job never runs; publishing itself uses PAGES_TOKEN
+    permissions:
+      contents: write
     uses: ./.github/workflows/build-rpm.yml
     with:
       package-name: ${{ needs.resolve.outputs.package }}
@@ -109,11 +113,16 @@ jobs:
       channel-deps: ${{ needs.resolve.outputs.channel-deps == 'true' }}
       source-repository: ${{ needs.resolve.outputs.repository }}
       source-ref: ${{ inputs.tag }}
+      source-sha: ${{ needs.resolve.outputs.commit }}
       create-github-release: false
     secrets: inherit
 
   deb:
     needs: resolve
+    # GitHub checks the called workflow's release job (contents: write) against this job's grant even though
+    # create-github-release is false and that job never runs; publishing itself uses PAGES_TOKEN
+    permissions:
+      contents: write
     uses: ./.github/workflows/build-deb.yml
     with:
       package-name: ${{ needs.resolve.outputs.package }}
@@ -124,5 +133,6 @@ jobs:
       channel-deps: ${{ needs.resolve.outputs.channel-deps == 'true' }}
       source-repository: ${{ needs.resolve.outputs.repository }}
       source-ref: ${{ inputs.tag }}
+      source-sha: ${{ needs.resolve.outputs.commit }}
       create-github-release: false
     secrets: inherit

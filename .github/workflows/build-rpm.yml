@@ -86,6 +86,11 @@ on:
         type: string
         default: ''
         description: 'Tag of source-repository to build and release, v<version>; empty means the tag the caller was run on'
+      source-sha:
+        description: 'With source-ref: the commit that tag must resolve to; each checkout is asserted against it. Empty skips the check.'
+        required: false
+        type: string
+        default: ''
       create-github-release:
         type: boolean
         default: true
@@ -117,6 +122,15 @@ jobs:
           ref: ${{ inputs.source-ref && format('refs/tags/{0}', inputs.source-ref) || '' }}
           fetch-depth: 0
           fetch-tags: true
+          persist-credentials: ${{ inputs.source-repository == '' }}
+
+      - name: Check the checkout is the verified commit
+        if: inputs.source-sha != ''
+        env:
+          WANT: ${{ inputs.source-sha }}
+        run: |
+          got=$(git -c safe.directory="$PWD" rev-parse HEAD)
+          [ "$got" = "$WANT" ] || { echo "::error::the checkout is $got but the verified tag resolved to $WANT"; exit 1; }
 
       - uses: FreeMixer/.github/.github/actions/changelog@v1
         with:
@@ -160,6 +174,15 @@ jobs:
           ref: ${{ inputs.source-ref && format('refs/tags/{0}', inputs.source-ref) || '' }}
           fetch-depth: 0
           fetch-tags: true
+          persist-credentials: ${{ inputs.source-repository == '' }}
+
+      - name: Check the checkout is the verified commit
+        if: inputs.source-sha != ''
+        env:
+          WANT: ${{ inputs.source-sha }}
+        run: |
+          got=$(git -c safe.directory="$PWD" rev-parse HEAD)
+          [ "$got" = "$WANT" ] || { echo "::error::the checkout is $got but the verified tag resolved to $WANT"; exit 1; }
 
       - uses: FreeMixer/.github/.github/actions/mod-host-rpms@v1
         if: inputs.needs-mod-host
