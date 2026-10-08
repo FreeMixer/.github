@@ -5,7 +5,7 @@ name: Build RPM (reusable)
 #   on: { push: { tags: ['v*'] }, workflow_dispatch: {} }
 #   jobs:
 #     rpm:
-#       uses: FreeMixer/.github/.github/workflows/build-rpm.yml@main
+#       uses: FreeMixer/.github/.github/workflows/build-rpm.yml@v1
 #       with: { package-name: plugin-hostd }
 #       secrets: inherit
 #
@@ -24,7 +24,7 @@ name: Build RPM (reusable)
 #                                    without a passphrase (platform signing-keys.yml, project openmixer)
 #   PAGES_TOKEN          token with contents write on the target repository
 #
-# The composite actions this workflow uses are ../actions of this repository, referenced at @main:
+# The composite actions this workflow uses are ../actions of this repository, referenced at @v1:
 # a reusable workflow cannot name its own ref, so it moves with main like the workflow does.
 
 on:
@@ -108,12 +108,12 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      - uses: FreeMixer/.github/.github/actions/changelog@main
+      - uses: FreeMixer/.github/.github/actions/changelog@v1
         with:
           tag: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
           spec: ${{ inputs.changelog-spec }}
 
-      - uses: FreeMixer/.github/.github/actions/release-preflight@main
+      - uses: FreeMixer/.github/.github/actions/release-preflight@v1
         with:
           publish: ${{ inputs.publish }}
           target: ${{ inputs.target-repo }}
@@ -148,7 +148,7 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      - uses: FreeMixer/.github/.github/actions/mod-host-rpms@main
+      - uses: FreeMixer/.github/.github/actions/mod-host-rpms@v1
         if: inputs.needs-mod-host
 
       # for the build only: the repository exists in this container and is never a dependency of a release
@@ -167,7 +167,7 @@ jobs:
           dnf -y makecache --repo freemixer --repo freemixer-noarch
           dnf repoquery --whatprovides 'pkgconfig(plugin-hostd)'
 
-      - uses: FreeMixer/.github/.github/actions/build-rpm@main
+      - uses: FreeMixer/.github/.github/actions/build-rpm@v1
         with:
           tag: ${{ env.RELEASE_TAG }}
 
@@ -246,7 +246,7 @@ jobs:
           merge-multiple: true
           path: collected
 
-      - uses: FreeMixer/.github/.github/actions/publish-rpms@main
+      - uses: FreeMixer/.github/.github/actions/publish-rpms@v1
         with:
           rpm-dir: collected
           tag: ${{ github.ref_name }}
@@ -290,7 +290,7 @@ jobs:
       # the release notes are the CHANGELOG.md entry of the version, not GitHub's list of merged pull requests
       - uses: actions/checkout@v4
 
-      - uses: FreeMixer/.github/.github/actions/changelog@main
+      - uses: FreeMixer/.github/.github/actions/changelog@v1
         with:
           mode: notes
           tag: ${{ github.ref_name }}
