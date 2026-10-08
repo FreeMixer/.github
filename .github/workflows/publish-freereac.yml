@@ -100,6 +100,10 @@ jobs:
 
   rpm:
     needs: resolve
+    # GitHub checks the called workflow's release job (contents: write) against this job's grant even though
+    # create-github-release is false and that job never runs; publishing itself uses PAGES_TOKEN
+    permissions:
+      contents: write
     uses: ./.github/workflows/build-rpm.yml
     with:
       package-name: ${{ needs.resolve.outputs.package }}
@@ -115,6 +119,10 @@ jobs:
 
   deb:
     needs: resolve
+    # GitHub checks the called workflow's release job (contents: write) against this job's grant even though
+    # create-github-release is false and that job never runs; publishing itself uses PAGES_TOKEN
+    permissions:
+      contents: write
     uses: ./.github/workflows/build-deb.yml
     with:
       package-name: ${{ needs.resolve.outputs.package }}
