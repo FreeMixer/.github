@@ -22,6 +22,10 @@ Older notes are free text.
 - Second thing, written
   over two lines.
 
+## 1.1.1 - 2026-09-30
+
+- A second release on the same day as 1.1.0-2.
+
 ## 1.1.0-2 - 2026-09-30
 
 - Fixed a crackle on the monitor output.
@@ -68,6 +72,11 @@ grep -q '^\* Wed Sep 30 2026 .* - 1.1.0-2$' packaging/demo.spec
 grep -q '100%% CPU' packaging/demo.spec
 grep -q '^demo (1.2.0) unstable; urgency=medium$' debian/changelog
 grep -q '^ -- Pau Aliagas <linuxnow@gmail.com>  Wed, 07 Oct 2026 12:00:00 +0000$' debian/changelog
+# two releases on one date: the oldest at 12:00, the newer a minute later, and the single-date entries unchanged
+times=$(awk '/^demo \(/ { v = $2 } / -- / { print v, $(NF-1) }' debian/changelog)
+[ "$times" = "$(printf '%s\n' '(1.2.0) 12:00:00' '(1.1.1) 12:01:00' '(1.1.0-2) 12:00:00' '(1.1.0) 12:00:00')" ] ||
+    { echo "FAIL: debian timestamps of one date: $times" >&2; exit 1; }
+echo "ok   two releases on one date get strictly increasing times"
 ! grep -q 'hand written' packaging/demo.spec
 ! awk 'length($0) > 80' debian/changelog | grep -q .
 dpkg-parsechangelog -l debian/changelog -S Version 2>/dev/null | grep -qx 1.2.0 || ! command -v dpkg-parsechangelog >/dev/null
