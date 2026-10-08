@@ -3,7 +3,8 @@ description: Build and install the Debian build dependencies the distribution do
 
 # libmod-host-protocol0 and libmod-host-protocol-dev from the pinned linuxnow/mod-host, the CLAP headers from
 # the pinned free-audio/clap: what a FreeMixer package Build-Depends on. The pins are .github/pins.txt.
-# The protocol library is published with the packages that link it; the CLAP headers are build-only.
+# The protocol library is published with the packages that link it; the CLAP headers are published as
+# clap-headers by clap-headers-deb.yml, and the -dev packages that Depend on them install it from there.
 # The caller runs as root in a Debian container with dpkg-dev, debhelper, build-essential, git and lintian.
 
 inputs:

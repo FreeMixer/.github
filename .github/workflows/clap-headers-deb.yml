@@ -1,0 +1,123 @@
+name: clap-headers DEBs
+
+# Builds clap-headers from the pin of .github/pins.txt for every Debian release and publishes it into deb/ of the
+# Pages repository. libomx-clap-core-dev Depends on clap-headers, so the -dev package installs only where this
+# package is served: Debian carries no CLAP header package. Run by hand, once per pin: the package carries the
+# version of actions/deb-deps/clap-headers/changelog, and a published version is never rebuilt with new bytes, so
+# a moved pin needs a new changelog entry with it.
+#
+# The package is Architecture: all, so one build per Debian release serves every architecture.
+#
+# publish=false, the default, is a dry run: it builds and assembles an unsigned tree as an artifact.
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Sign and publish; only a run on the main branch publishes'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    name: Check the release can publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Refuse to publish from anywhere but main
+        if: inputs.publish && github.ref != 'refs/heads/main'
+        run: echo "::error::publish is only for a run on main"; exit 1
+
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/release-preflight
+        with:
+          publish: ${{ inputs.publish }}
+          require-tag: 'false'
+          target: FreeMixer/freemixer.github.io
+          gpg-key: ${{ secrets.OPENMIXER_PACKAGES_SIGNING_KEY }}
+          pages-token: ${{ secrets.PAGES_TOKEN }}
+
+  build:
+    name: Build (${{ matrix.suite }})
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: debian:${{ matrix.suite }}
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [bookworm, trixie]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Install the build tools
+        run: |
+          apt-get update -qq
+          apt-get install -y --no-install-recommends ca-certificates git dpkg-dev debhelper build-essential lintian
+
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/deb-deps
+        with:
+          names: clap-headers
+
+      - name: Lay the packages out by Debian release
+        env:
+          SUITE: ${{ matrix.suite }}
+        run: |
+          mkdir -p "out/$SUITE"
+          cp dep-debs/clap-headers*.deb "out/$SUITE/"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: clap-headers-debs-${{ matrix.suite }}
+          path: out
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    name: Sign and publish
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: debian:trixie
+    concurrency:
+      group: publish-FreeMixer/freemixer.github.io
+      cancel-in-progress: false
+    env:
+      DO_PUBLISH: ${{ inputs.publish && github.ref == 'refs/heads/main' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: clap-headers-debs-*
+          merge-multiple: true
+          path: collected
+
+      - uses: ./.github/actions/publish-debs
+        with:
+          deb-dir: collected
+          tag: clap-headers
+          sign: ${{ env.DO_PUBLISH }}
+          gpg-key: ${{ secrets.OPENMIXER_PACKAGES_SIGNING_KEY }}
+          # the original key co-signs the apt index while installs may hold only it (publish-debs)
+          cosign-key: ${{ secrets.RPM_GPG_KEY }}
+          cosign-passphrase: ${{ secrets.RPM_GPG_PASSPHRASE }}
+          publish-token: ${{ secrets.PAGES_TOKEN }}
+          site-gpg-key: ${{ secrets.SITE_GPG_KEY }}
+
+      - uses: actions/upload-artifact@v4
+        if: env.DO_PUBLISH != 'true'
+        with:
+          name: clap-headers-unsigned-apt-tree
+          path: build/repo/**
+          if-no-files-found: error
+          retention-days: 30
