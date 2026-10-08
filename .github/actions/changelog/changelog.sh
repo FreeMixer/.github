@@ -84,21 +84,32 @@ wrap() {
 
 rpm_version() { case $1 in *-[0-9]*) printf '%s' "$1" ;; *) printf '%s-1' "$1" ;; esac; }
 
-# render <format>: every entry, newest first
+# render <format>: every entry, newest first. Entries that share a date get a minute each, so the Debian
+# timestamps strictly increase with the version: the oldest of a date at 12:00, each newer one a minute later.
 render() {
-    local fmt=$1 src=${2:-} kind a b first=1 ver= date= bullets=
+    local fmt=$1 src=${2:-} kind a b i j n first=1
+    local ver= date= bullets=
+    local -a vers=() dates=() bodies=()
     while IFS=$'\t' read -r kind a b; do
         if [ "$kind" = E ] || [ "$kind" = END ]; then
-            if [ -n "$ver" ]; then emit_entry "$fmt" "$src" "$ver" "$date" "$bullets"; fi
+            if [ -n "$ver" ]; then vers+=("$ver"); dates+=("$date"); bodies+=("$bullets"); fi
             ver=$a date=$b bullets=
         else
             bullets+=$a$'\n'
         fi
     done < <(parse; echo END)
+    for ((i = 0; i < ${#vers[@]}; i++)); do
+        n=0
+        for ((j = i + 1; j < ${#vers[@]}; j++)); do
+            if [ "${dates[j]}" = "${dates[i]}" ]; then n=$((n + 1)); fi
+        done
+        emit_entry "$fmt" "$src" "${vers[i]}" "${dates[i]}" "${bodies[i]}" "$n"
+    done
 }
 
+# emit_entry <format> <source> <version> <date> <bullets> <minutes after 12:00 UTC>
 emit_entry() {
-    local fmt=$1 src=$2 ver=$3 date=$4 bullets=$5 stamp
+    local fmt=$1 src=$2 ver=$3 date=$4 bullets=$5 mins=$6 stamp
     [ -n "$bullets" ] || die "version $ver has no bullet"
     if [ "$fmt" = rpm ]; then
         stamp=$(LC_ALL=C date -u -d "$date 12:00:00" +'%a %b %d %Y')
@@ -106,7 +117,7 @@ emit_entry() {
         printf '* %s %s - %s\n' "$stamp" "$author" "$(rpm_version "$ver")"
         printf '%s' "$bullets" | sed 's/%/%%/g' | wrap '- ' '  ' 78
     else
-        stamp=$(LC_ALL=C date -u -d "$date 12:00:00" -R)
+        stamp=$(LC_ALL=C date -u -d "$date 12:00:00 UTC +$mins minutes" -R)
         [ "$first" = 1 ] || echo
         printf '%s (%s) unstable; urgency=medium\n\n' "$src" "$ver"
         printf '%s' "$bullets" | wrap '  * ' '    ' 78
