@@ -8,7 +8,8 @@ name: clap-headers DEBs
 #
 # The package is Architecture: all, so one build per Debian release serves every architecture.
 #
-# publish=false, the default, is a dry run: it builds and assembles an unsigned tree as an artifact.
+# publish=false, the default, is a dry run: it builds and assembles an unsigned tree as an artifact. Nothing is
+# published by it, and the run says so in its summary; a publish ends by reading the channel back for the package.
 
 on:
   workflow_dispatch:
@@ -113,6 +114,30 @@ jobs:
           cosign-passphrase: ${{ secrets.RPM_GPG_PASSPHRASE }}
           publish-token: ${{ secrets.PAGES_TOKEN }}
           site-gpg-key: ${{ secrets.SITE_GPG_KEY }}
+
+      - name: Say whether anything was published
+        if: env.DO_PUBLISH != 'true'
+        run: |
+          msg="dry run: nothing was signed or pushed to the channel; dispatch again with publish=true on main to publish"
+          echo "::warning::$msg"
+          echo "$msg" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Prove the channel serves the new package
+        if: env.DO_PUBLISH == 'true'
+        run: |
+          # The index of each suite must name clap-headers at the version built here, once Pages has caught up.
+          # A green publish is not proof: a dry run is green too (2026-10-08).
+          ok=0
+          for suite in bookworm trixie; do
+            url="https://freemixer.github.io/deb/debian/$suite/Packages"
+            for try in $(seq 1 30); do
+              if curl -fsSL -L "$url" | awk -v RS= '/(^|\n)Package: clap-headers(\n|$)/ && /(^|\n)Version: 1\.2\.10-1(\n|$)/ {f=1} END {exit !f}'; then
+                echo "$suite serves clap-headers 1.2.10-1"; ok=$((ok + 1)); break
+              fi
+              sleep 10
+            done
+          done
+          [ "$ok" -eq 2 ] || { echo "::error::the channel does not serve clap-headers 1.2.10-1 on both suites"; exit 1; }
 
       - uses: actions/upload-artifact@v4
         if: env.DO_PUBLISH != 'true'
