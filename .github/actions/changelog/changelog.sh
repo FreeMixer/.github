@@ -126,7 +126,10 @@ emit_entry() {
     first=0
 }
 
-top_version() { parse | awk -F'\t' '$1 == "E" { print $2; exit }'; }
+# The newest version. awk reads all of parse: stopping at the first entry would close the pipe on `parse`
+# while it is still writing, and under pipefail a history longer than one stdio buffer then failed the
+# check with exit 141 and no message.
+top_version() { parse | awk -F'\t' '$1 == "E" && !t { t = $2 } END { print t }'; }
 
 spec_of() {
     local found
