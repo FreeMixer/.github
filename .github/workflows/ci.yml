@@ -2,7 +2,7 @@ name: ci
 
 # The publish scripts and the key import, exercised the way a release uses them, with throwaway keys: a
 # channel signed by one key, a second key served next to it, a publish signed by the second key, and a
-# client that only ever held the first (tests/key-transition.sh). The changelog generator and checks, and
+# client that only ever held the first (tests/key-transition.sh). The changelog generator (from git), and
 # what the channel publish adds from them: an updateinfo.xml for dnf and a Changelogs URL for apt
 # (docs/packaging-changelog.md).
 
@@ -63,11 +63,13 @@ jobs:
         run: tests/key-transition.sh ${{ matrix.kind }}
 
   changelog:
-    name: CHANGELOG.md generator and checks
+    name: changelog generator from git
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - run: tests/changelog.sh
 
   updateinfo:

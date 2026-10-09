@@ -13,54 +13,36 @@ RPM or a deb through the workflows of this repository.
 | `dnf check-update --changelogs` | the changelog entries of the versions an update brings |
 | `apt changelog <package>` | the changelog of the version about to be installed, or of the installed one |
 | `apt-listchanges` (when installed) | the changelog of each deb it is about to upgrade, read from the deb itself |
-| GitHub release page | the release's entry of `CHANGELOG.md` |
+| GitHub release page | the commit subjects since the previous tag |
 
-## One source: CHANGELOG.md
+## One source: git history
 
-Each repository has a `CHANGELOG.md` with one section per version, newest first:
-
-```
-## 0.1.5 - 2026-10-07
-
-- What changed for someone who installs the package, in plain words. A bullet may continue on
-  lines indented by two spaces.
-```
-
-Write for the person updating: what they can do now, what no longer breaks, what to know before they
-update. No lane names, task numbers or internal vocabulary; a line a user cannot act on or understand does
-not belong. A version is `<version>` or `<version>-<release>` (a repository that bumps the RPM release
-without a new version, such as openmixer, writes `0.1.0-14`); without a release the RPM release is 1.
-
-`.github/actions/changelog/changelog.sh` generates everything else from it:
+No changelog file is kept by hand. The changelog of a release is the commit subjects between the previous
+tag and the release tag, merge commits left out, so a commit subject is written for the person updating:
+what they can do now, what no longer breaks. `.github/actions/changelog/changelog.sh` makes everything
+else from the history (the checkout needs its tags and history: `fetch-depth: 0`):
 
 | Command | Output |
 | --- | --- |
-| `changelog.sh sync` | rewrites the `%changelog` of `packaging/*.spec` and `debian/changelog` |
-| `changelog.sh check [-t v<version>]` | fails when either differs from what `sync` writes, when the spec's Version or Release is not the newest entry's, and, with a tag, when the tag is not the newest entry |
-| `changelog.sh notes <version>` | the GitHub release notes |
+| `changelog.sh notes [<ref>]` | the GitHub release notes, `- <subject>` per commit |
+| `changelog.sh rpm [<ref>] <version-release>` | the one `%changelog` entry of a spec |
+| `changelog.sh deb [<ref>]` | rewrites the top entry of `debian/changelog` from the same commits |
 
-The generated files stay in the repository, so a source tarball builds without the tool, and nobody edits
-them by hand: the check refuses a hand edit the same way it refuses a stale file. The author of the entries
-is `$CHANGELOG_AUTHOR` (Pau Aliagas by default); the Debian date is the entry's date at 12:00 UTC. Two entries
-on one date get a minute each, the older at 12:00 and the newer at 12:01, so lintian sees the newer release as
-newer than the one before it.
+The version is the package's own: the spec's `Version` and `Release`, the top entry's version of
+`debian/changelog`. The spec keeps a `%changelog` heading (the build replaces what follows it) and the tree
+keeps a `debian/changelog` with one entry for the version (the build replaces its body), because the package
+formats require them. The author of the entries is `$CHANGELOG_AUTHOR` (Pau Aliagas by default); the dates
+are the date of the release commit.
 
-A repository adopts it by adding `CHANGELOG.md`, running `changelog.sh sync`, and calling the action from
-its `ci.yml`:
+A release is: bump the version files, tag `v<version>`. The `changelog` action, `mode: notes`, writes the
+notes of a tag to a file; `mode: check` no longer exists and fails.
 
-```yaml
-- uses: actions/checkout@v4
-- uses: FreeMixer/.github/.github/actions/changelog@v1
-```
+## Where the shared workflows use it
 
-A release is then: add the version's section to `CHANGELOG.md`, run `changelog.sh sync`, bump the version
-files, tag `v<version>`.
-
-## Where the shared workflows enforce it
-
-`build-rpm.yml` and `build-deb.yml` run the check first, before any build minutes: on a tag it refuses a
-version with no entry, or a spec or `debian/changelog` that `CHANGELOG.md` does not generate. Their release
-job creates the GitHub release with the entry as its notes (it used to list merged pull requests).
+`build-rpm.sh` and `build-deb.sh` check that the tag is `v<version>` of the package and the tree is the tag's
+commit, then generate the changelog from git before building. The release jobs of `build-rpm.yml` and
+`build-deb.yml` check out with full history and create the GitHub release with the notes from git. The
+`changelog-spec` input of both workflows is ignored and kept so existing callers still validate.
 
 ## The channel's update metadata
 
@@ -89,6 +71,6 @@ task numbers and how it is built belong in the repository's docs.
 
 ## Tests
 
-`tests/changelog.sh` (the generator and each way the check refuses), `tests/updateinfo.sh` (two releases
+`tests/changelog.sh` (the generator, from a throwaway git repository), `tests/updateinfo.sh` (two releases
 published, `dnf updateinfo info` and `dnf check-update --changelogs` on a machine that holds the first) and
 `tests/deb-changelog.sh` (a package built, published, and `apt changelog` over HTTP) run in `ci.yml`.

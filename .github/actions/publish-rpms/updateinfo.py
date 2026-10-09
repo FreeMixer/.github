@@ -4,7 +4,7 @@
     updateinfo.py <rpm dir> <output file>
 
 One advisory per release (per source RPM), made from the packages themselves: its text is the newest
-%changelog entry of the RPM, which is the CHANGELOG.md entry of that version (docs/packaging-changelog.md).
+%changelog entry of the RPM, made from git (docs/packaging-changelog.md).
 The channel keeps no other state, so every publish regenerates the advisories of every release the
 directory holds, and a release published before this existed gets its advisory the next time anything is
 published. `dnf updateinfo info` prints them; modifyrepo_c merges the file into the repository metadata.
