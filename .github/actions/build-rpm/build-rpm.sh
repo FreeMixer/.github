@@ -5,7 +5,8 @@
 #
 # The spec is the tree's only packaging/*.spec and the version is its own. With -t the tag must be
 # v<version> and the tree must be that tag's commit; without it the build is a snapshot: the release
-# carries .git<short sha> and the changelog says so. BuildRequires must be installed.
+# carries .git<short sha>. The spec's %changelog is generated from git (commit subjects since the previous
+# tag, .github/actions/changelog/changelog.sh); the version is the spec's. BuildRequires must be installed.
 set -euo pipefail
 
 tree=.
@@ -37,13 +38,16 @@ if [ -n "$tag" ]; then
     [ "$tag" = "v$version" ] || { echo "tag $tag is not v$version, the spec's version" >&2; exit 1; }
     [ "$(git -C "$tree" rev-parse "$tag^{commit}")" = "$(git -C "$tree" rev-parse HEAD)" ] ||
         { echo "the tree is not at $tag" >&2; exit 1; }
+    ref=$tag
 else
     sed -i "s/^Release: *\([0-9][0-9]*\)%{?dist}/Release: \1.git$short%{?dist}/" "$spec"
-    release=$(sed -n 's/^Release: *\(.*\)%{?dist}$/\1/p' "$spec")
-    printf '* %s Pau Aliagas <linuxnow@gmail.com> - %s-%s\n- build of commit %s\n\n' \
-        "$(LC_ALL=C date +'%a %b %d %Y')" "$version" "$release" "$short" > "$top/changelog"
-    sed -i "/^%changelog/r $top/changelog" "$spec"
+    ref=HEAD
 fi
+release=$(sed -n 's/^Release: *\(.*\)%{?dist}$/\1/p' "$spec")
+# %changelog is the last section: whatever the spec holds after it is replaced by the entry made from git
+grep -q '^%changelog' "$spec" || printf '\n%%changelog\n' >> "$spec"
+sed -i '/^%changelog/q' "$spec"
+"$(dirname "$(readlink -f "$0")")/../changelog/changelog.sh" rpm -C "$tree" "$ref" "$version-$release" >> "$spec"
 
 git -C "$tree" archive --prefix="$name-$version/" HEAD | gzip > "$top/SOURCES/$name-$version.tar.gz"
 rpmbuild --define "_topdir $top" -ba "$spec"

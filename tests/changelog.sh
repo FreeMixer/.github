@@ -1,5 +1,6 @@
 #!/bin/bash
-# changelog.sh against a throwaway repository: what it generates, and each way it refuses.
+# changelog.sh against a throwaway git repository: the notes, the %changelog entry and debian/changelog it
+# makes from commit subjects, and that it never reads a CHANGELOG.md.
 #
 #   tests/changelog.sh
 set -euo pipefail
@@ -9,119 +10,50 @@ tool=$here/.github/actions/changelog/changelog.sh
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 cd "$work"
-mkdir -p packaging debian
+export GIT_CONFIG_GLOBAL=/dev/null GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
+git init -q -b main .
+mkdir debian
+printf 'demo (1.1.0) unstable; urgency=medium\n\n  * x\n\n -- t <t@t>  Mon, 01 Jan 2024 00:00:00 +0000\n' > debian/changelog
+echo CHANGELOG-BAIT > CHANGELOG.md
 
-cat > CHANGELOG.md <<'MD'
-# Changelog
+commit() { echo "$1" >> f; git add f; GIT_COMMITTER_DATE="$2" git commit -q -m "$1" --date "$2"; }
+commit "First version of the thing" "2026-09-01T12:00:00Z"
+git tag v1.0.0
+commit "Faster start, and the 100% CPU spike on a long session is gone, which was a long standing complaint of people" "2026-09-30T12:00:00Z"
+commit "Fix the clip latch" "2026-10-01T12:00:00Z"
+git checkout -q -b side; commit "side work" "2026-10-02T12:00:00Z"; git checkout -q main
+GIT_COMMITTER_DATE="2026-10-03T12:00:00Z" git merge -q --no-ff side -m "Merge side"
+git tag v1.1.0
 
-Older notes are free text.
+ok() { echo "ok   $*"; }
+fail() { echo "FAIL: $*" >&2; exit 1; }
 
-## 1.2.0 - 2026-10-07
+notes=$("$tool" notes -C . v1.1.0)
+[ "$(echo "$notes" | head -n1)" = "- side work" ] || fail "newest first, merge left out: $notes"
+echo "$notes" | grep -q '^- Fix the clip latch$' || fail "subject missing"
+echo "$notes" | grep -q 'First version' && fail "reached past the previous tag"
+echo "$notes" | grep -q 'Merge side' && fail "merge commit listed"
+echo "$notes" | grep -q 'CHANGELOG-BAIT' && fail "read CHANGELOG.md"
+ok "notes: subjects since v1.0.0, no merges"
 
-- Faster start, and the 100% CPU spike on a long session is gone. This bullet is long enough that it has to be wrapped for the Debian changelog, which keeps lines short.
-- Second thing, written
-  over two lines.
+first=$("$tool" notes -C . v1.0.0)
+[ "$first" = "- First version of the thing" ] || fail "first release: $first"
+ok "notes: the first release is its whole history"
 
-## 1.1.1 - 2026-09-30
+rpm=$("$tool" rpm -C . v1.1.0 1.1.0-1)
+[ "$(echo "$rpm" | head -n1)" = "* Sat Oct 03 2026 Pau Aliagas <linuxnow@gmail.com> - 1.1.0-1" ] || fail "rpm header: $rpm"
+echo "$rpm" | grep -q '100%% CPU' || fail "percent not escaped: $rpm"
+ok "rpm: one entry, % escaped"
 
-- A second release on the same day as 1.1.0-2.
+"$tool" deb -C . v1.1.0
+head -n1 debian/changelog | grep -qx 'demo (1.1.0) unstable; urgency=medium' || fail "deb header kept"
+tail -n1 debian/changelog | grep -qx ' -- Pau Aliagas <linuxnow@gmail.com>  Sat, 03 Oct 2026 12:00:00 +0000' || fail "deb trailer"
+! awk 'length($0) > 80' debian/changelog | grep -q . || fail "deb line too long"
+grep -q '^  \* Fix the clip latch$' debian/changelog || fail "deb bullet"
+[ "$(grep -c '^ -- ' debian/changelog)" = 1 ] || fail "deb has one entry"
+! grep -q 'CHANGELOG-BAIT' debian/changelog || fail "deb read CHANGELOG.md"
+ok "deb: top entry rewritten, folded under 80 columns"
 
-## 1.1.0-2 - 2026-09-30
-
-- Fixed a crackle on the monitor output.
-
-## 1.1.0 - 2026-09-01
-
-- First package.
-
-## 2026-07-04
-
-Not a version, ignored.
-MD
-cat > packaging/demo.spec <<'SPEC'
-Name: demo
-Version: 1.2.0
-Release: 1%{?dist}
-Summary: A demo
-
-%description
-Demo.
-
-%changelog
-* Mon Jan 01 2001 Somebody <s@example.org> - 0.0.1-1
-- hand written
-SPEC
-printf 'Source: demo\nSection: sound\n\nPackage: demo\nArchitecture: any\nDescription: a demo\n x\n' > debian/control
-echo "stale" > debian/changelog
-
-expect_fail() {
-    local why=$1; shift
-    if "$@" >/dev/null 2>"$work/err"; then echo "FAIL: accepted: $why" >&2; exit 1; fi
-    grep -q "$why" "$work/err" || { echo "FAIL: refused, but not for '$why':" >&2; cat "$work/err" >&2; exit 1; }
-    echo "ok   refused: $why"
-}
-expect_ok() { "$@" >/dev/null || { echo "FAIL: $*" >&2; exit 1; }; echo "ok   $*" | sed "s|$tool|changelog.sh|"; }
-
-expect_fail 'not what CHANGELOG.md generates' "$tool" check
-"$tool" sync
-expect_ok "$tool" check
-expect_ok "$tool" check -t v1.2.0
-
-grep -q '^\* Wed Oct 07 2026 Pau Aliagas <linuxnow@gmail.com> - 1.2.0-1$' packaging/demo.spec
-grep -q '^\* Wed Sep 30 2026 .* - 1.1.0-2$' packaging/demo.spec
-grep -q '100%% CPU' packaging/demo.spec
-grep -q '^demo (1.2.0) unstable; urgency=medium$' debian/changelog
-grep -q '^ -- Pau Aliagas <linuxnow@gmail.com>  Wed, 07 Oct 2026 12:00:00 +0000$' debian/changelog
-# two releases on one date: the oldest at 12:00, the newer a minute later, and the single-date entries unchanged
-times=$(awk '/^demo \(/ { v = $2 } / -- / { print v, $(NF-1) }' debian/changelog)
-[ "$times" = "$(printf '%s\n' '(1.2.0) 12:00:00' '(1.1.1) 12:01:00' '(1.1.0-2) 12:00:00' '(1.1.0) 12:00:00')" ] ||
-    { echo "FAIL: debian timestamps of one date: $times" >&2; exit 1; }
-echo "ok   two releases on one date get strictly increasing times"
-! grep -q 'hand written' packaging/demo.spec
-! awk 'length($0) > 80' debian/changelog | grep -q .
-dpkg-parsechangelog -l debian/changelog -S Version 2>/dev/null | grep -qx 1.2.0 || ! command -v dpkg-parsechangelog >/dev/null
-echo "ok   the generated files read as intended"
-
-notes=$("$tool" notes 1.2.0)
-grep -q '^- Second thing, written over two lines\.$' <<<"$notes"
-! grep -q 'First package' <<<"$notes"
-echo "ok   release notes of one version"
-
-expect_fail 'no entry for 9.9.9' "$tool" notes 9.9.9
-expect_fail 'newest CHANGELOG.md entry is 1.2.0' "$tool" check -t v1.3.0
-expect_fail 'newest CHANGELOG.md entry is 1.2.0' "$tool" check -t v1.1.0
-
-sed -i 's/^- hand.*//; s/- Fixed a crackle/- Fixed a crack/' packaging/demo.spec
-expect_fail 'not what CHANGELOG.md generates' "$tool" check
-"$tool" sync
-echo "- sneaked in" >> debian/changelog
-expect_fail 'debian/changelog is not what' "$tool" check
-"$tool" sync
-sed -i 's/^Version: 1.2.0/Version: 1.1.0/' packaging/demo.spec
-expect_fail 'says Version 1.1.0' "$tool" check
-sed -i 's/^Version: 1.1.0/Version: 1.2.0/; s/^Release: 1/Release: 3/' packaging/demo.spec
-expect_fail 'says Release 3' "$tool" check
-"$tool" sync
-sed -i 's/^Release: 3/Release: 1/' packaging/demo.spec
-
-cp CHANGELOG.md keep.md
-sed -i 's/^## 1.1.0-2 - 2026-09-30/## 1.1.0-2 - 2026-11-30/' CHANGELOG.md
-expect_fail 'dated after' "$tool" check
-cp keep.md CHANGELOG.md
-sed -i 's/^## 1.1.0 - 2026-09-01/## 1.2.0 - 2026-09-01/' CHANGELOG.md
-expect_fail 'listed twice' "$tool" check
-cp keep.md CHANGELOG.md
-sed -i 's/^## 1.1.0 - 2026-09-01/## 1.0.0 2026-09-01/' CHANGELOG.md
-expect_fail 'malformed heading' "$tool" check
-cp keep.md CHANGELOG.md
-# a history longer than one pipe buffer: reading only the first entry used to close the pipe on the parser
-# (exit 141, no message under pipefail), by luck of timing
-for i in $(seq 150 -1 1); do printf '\n## 0.%d.0 - 2025-01-01\n\n- An older release, written long enough that the parsed history fills several pipe buffers. Number %d.\n' "$i" "$i" >> CHANGELOG.md; done
-"$tool" sync
-for _ in 1 2 3 4 5 6 7 8 9 10; do expect_ok "$tool" check >/dev/null; done
-echo "ok   a history of 150 older releases checks every time"
-cp keep.md CHANGELOG.md
-"$tool" sync
-rm CHANGELOG.md
-expect_fail 'no CHANGELOG.md' "$tool" check
+"$tool" notes -C . nonesuch 2>/dev/null && fail "unknown ref accepted"
+ok "unknown ref refused"
 echo "changelog tests: all passed"
