@@ -3,12 +3,14 @@
 #
 #   build-deb.sh [-C <tree>] [-t <release tag>] <output dir>
 #
-# The version is the tree's debian/changelog; when the tree also carries a packaging/*.spec its Version
+# The version is the top entry of the tree's debian/changelog, whose body is regenerated from git (commit
+# subjects since the previous tag, .github/actions/changelog/changelog.sh); when the tree also carries a packaging/*.spec its Version
 # must be the same, one release cannot be two versions. With -t the tag must be v<version> and the tree
 # must be that tag's commit; without it the build is a snapshot: the top changelog entry becomes <version>~git<short sha>,
 # which sorts below the release. Lintian warnings fail the build; a tag that is deliberate carries an
 # override with its reason in debian/.
 set -euo pipefail
+here=$(dirname "$(readlink -f "$0")")
 
 tree=.
 tag=
@@ -35,8 +37,9 @@ for spec in packaging/*.spec; do
 done
 
 short=$(git rev-parse --short HEAD)
+"$here/../changelog/changelog.sh" deb -C . "${tag:-HEAD}"
 if [ -n "$tag" ]; then
-    [ "$tag" = "v$version" ] || { echo "tag $tag is not v$version, the changelog's version" >&2; exit 1; }
+    [ "$tag" = "v$version" ] || { echo "tag $tag is not v$version, the debian/changelog version" >&2; exit 1; }
     [ "$(git rev-parse "$tag^{commit}")" = "$(git rev-parse HEAD)" ] || { echo "the tree is not at $tag" >&2; exit 1; }
 else
     sed -i "1s/^\\(\\S\\+\\) (\\([^)]*\\))/\\1 ($version~git$short)/" debian/changelog
