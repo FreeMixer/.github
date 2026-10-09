@@ -1,26 +1,26 @@
 name: changelog
-description: Check that CHANGELOG.md and the files generated from it agree, or write the release notes of a version
+description: Write the release notes of a tag from the git history since the previous tag
 
-# CHANGELOG.md is the one human changelog of a repository (docs/packaging-changelog.md). mode check refuses
-# a tree whose spec %changelog or debian/changelog is not what CHANGELOG.md generates, and, with a tag, a
-# tag whose version has no entry. mode notes writes the entry of the tag's version as the GitHub release
-# notes. The caller has checked the repository out; a tag needs the tag's commit.
+# Git history is the changelog; no CHANGELOG.md is kept (docs/packaging-changelog.md). mode notes writes the
+# commit subjects between the previous tag and the tag as the GitHub release notes. The caller has checked
+# the repository out with fetch-depth: 0 so the tags and history are there. The old mode check (CHANGELOG.md
+# against the spec and debian/changelog) is gone and refuses with an error.
 
 inputs:
   mode:
-    description: check or notes
-    default: check
+    description: notes (check is gone)
+    default: notes
   tree:
     description: the checkout
     default: .
   tag:
-    description: release tag; empty checks the tree alone
+    description: release tag; empty means HEAD
     default: ''
   spec:
-    description: the spec, relative to the tree, when it is not the only packaging/*.spec
+    description: ignored, kept so existing callers still validate
     default: ''
   notes-file:
-    description: mode notes, where the release notes are written
+    description: where the release notes are written
     default: release-notes.md
 
 runs:
@@ -31,20 +31,13 @@ runs:
         MODE: ${{ inputs.mode }}
         TREE: ${{ inputs.tree }}
         TAG: ${{ inputs.tag }}
-        SPEC: ${{ inputs.spec }}
         NOTES: ${{ inputs.notes-file }}
       run: |
         set -euo pipefail
-        args=(-C "$TREE")
-        [ -z "$SPEC" ] || args+=(-s "$SPEC")
         case "$MODE" in
-          check)
-            [ -z "$TAG" ] || args+=(-t "$TAG")
-            "$GITHUB_ACTION_PATH/changelog.sh" check "${args[@]}"
-            ;;
           notes)
-            "$GITHUB_ACTION_PATH/changelog.sh" notes "${args[@]}" "${TAG#v}" > "$NOTES"
+            "$GITHUB_ACTION_PATH/changelog.sh" notes -C "$TREE" "${TAG:-HEAD}" > "$NOTES"
             cat "$NOTES"
             ;;
-          *) echo "::error::mode is check or notes, not $MODE"; exit 1 ;;
+          *) echo "::error::mode is notes, not $MODE: the CHANGELOG.md check was removed, git history is the changelog"; exit 1 ;;
         esac
