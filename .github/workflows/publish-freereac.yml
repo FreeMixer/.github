@@ -8,6 +8,8 @@ name: Publish FreeREAC release
 #
 # publish=false (the default) is a dry run: everything is built and linted and an unsigned tree is attached.
 #
+# reac-stageboxes needs reac-pw at run time only, so it has no order; its DEB is built for trixie alone.
+#
 # ORDER: libreac before reac-pw. reac-pw builds against libreac and libreac-transport from the channel, so
 # publish the libreac version its meson.build asks for first; until then its builds stop at installing them.
 
@@ -15,12 +17,13 @@ on:
   workflow_dispatch:
     inputs:
       repository:
-        description: 'FreeREAC repository to release: FreeREAC/libreac or FreeREAC/reac-pw'
+        description: 'FreeREAC repository to release: FreeREAC/libreac, FreeREAC/reac-pw or FreeREAC/reac-stageboxes'
         required: true
         type: choice
         options:
           - FreeREAC/libreac
           - FreeREAC/reac-pw
+          - FreeREAC/reac-stageboxes
       tag:
         description: 'Release tag, v<major>.<minor>.<patch>; it must already exist in the repository'
         required: true
@@ -44,6 +47,7 @@ jobs:
       rpm-binaries: ${{ steps.pick.outputs.rpm-binaries }}
       deb-binaries: ${{ steps.pick.outputs.deb-binaries }}
       deb-requires: ${{ steps.pick.outputs.deb-requires }}
+      deb-suites: ${{ steps.pick.outputs.deb-suites }}
       channel-deps: ${{ steps.pick.outputs.channel-deps }}
       commit: ${{ steps.pick.outputs.commit }}
     steps:
@@ -63,13 +67,23 @@ jobs:
               rpm_binaries='libreac libreac-devel libreac-transport libreac-transport-devel'
               deb_binaries='libreac6 libreac-dev libreac-transport7 libreac-transport-dev'
               deb_requires=''
+              deb_suites='["bookworm", "trixie"]'
               channel_deps=false ;;
             FreeREAC/reac-pw)
               package=reac-pw
               rpm_binaries=''
               deb_binaries=''
               deb_requires='libreac6 libreac-transport7'
+              deb_suites='["bookworm", "trixie"]'
               channel_deps=true ;;
+            FreeREAC/reac-stageboxes)
+              # libadwaita 1.4 is needed: bookworm carries 1.2, so the DEB is trixie only
+              package=reac-stageboxes
+              rpm_binaries=''
+              deb_binaries=''
+              deb_requires='reac-pw'
+              deb_suites='["trixie"]'
+              channel_deps=false ;;
             *) echo "::error::'$REPOSITORY' is not a FreeREAC repository this workflow releases"; exit 1 ;;
           esac
 
@@ -94,6 +108,7 @@ jobs:
             echo "rpm-binaries=$rpm_binaries"
             echo "deb-binaries=$deb_binaries"
             echo "deb-requires=$deb_requires"
+            echo "deb-suites=$deb_suites"
             echo "channel-deps=$channel_deps"
             echo "commit=$commit"
           } >> "$GITHUB_OUTPUT"
@@ -130,6 +145,7 @@ jobs:
       publish: ${{ inputs.publish }}
       dependencies: ''
       requires: ${{ needs.resolve.outputs.deb-requires }}
+      suite-matrix: ${{ needs.resolve.outputs.deb-suites }}
       channel-deps: ${{ needs.resolve.outputs.channel-deps == 'true' }}
       source-repository: ${{ needs.resolve.outputs.repository }}
       source-ref: ${{ inputs.tag }}
