@@ -1,7 +1,8 @@
 #!/bin/bash
 # Build the mod-host RPMs, with mod-host-protocol and mod-host-protocol-devel, from the audinux spec of linuxnow/fedora-spec into $1.
 # Runs as root in a Fedora container. SPEC_REF is a commit of linuxnow/fedora-spec; RELEASE, when set,
-# replaces the spec's Release (the dist tag is kept).
+# replaces the spec's Release (the dist tag is kept). SUFFIX, when set, is appended to the Release after a dot
+# and before the dist tag, so the channel's package reads 11.fmx.fc44 and sorts after the audinux 11.fc44.
 set -euo pipefail
 
 out=$(readlink -f "${1:?usage: build.sh <output dir>}")
@@ -17,6 +18,13 @@ mv "$top/SOURCES/mod-host.spec" "$top/SPECS/"
 if [ -n "${RELEASE:-}" ]; then
     sed -i "s/^Release:.*/Release: $RELEASE%{?dist}/" "$top/SPECS/mod-host.spec"
     grep -qxF "Release: $RELEASE%{?dist}" "$top/SPECS/mod-host.spec" || { echo "Release not set to $RELEASE" >&2; exit 1; }
+fi
+
+if [ -n "${SUFFIX:-}" ]; then
+    rel=$(sed -n 's/^Release: *\(.*\)%{?dist}.*/\1/p' "$top/SPECS/mod-host.spec")
+    [ -n "$rel" ] || { echo "no Release in the spec to suffix" >&2; exit 1; }
+    sed -i "s/^Release:.*/Release: $rel.$SUFFIX%{?dist}/" "$top/SPECS/mod-host.spec"
+    grep -qxF "Release: $rel.$SUFFIX%{?dist}" "$top/SPECS/mod-host.spec" || { echo "Release not suffixed with $SUFFIX" >&2; exit 1; }
 fi
 
 # pipewire's jack first: the builddep would pull jack-audio-connection-kit-devel, which conflicts with it
