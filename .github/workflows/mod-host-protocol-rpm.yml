@@ -3,7 +3,8 @@ name: mod-host-protocol RPMs
 # Builds mod-host, mod-host-protocol, which carries libmod-host-protocol.so.0, and mod-host-protocol-devel from the fedora-spec
 # pin of .github/pins.txt for every architecture and publishes them into rpm/ of the Pages repository, where
 # omx-clap-host and plugin-hostd Require libmod-host-protocol.so.0, until audinux ships the library. The packages
-# carry the pinned spec's own Version and Release, the NEVRA audinux builds from the same spec. Run by hand, once
+# carry the pinned spec's own Version and Release with the suffix fmx after the release counter (11.fmx.fc44), so
+# they sort after the NEVRA audinux builds from the same spec. Run by hand, once
 # per pin: a published NEVRA is never rebuilt with new bytes.
 #
 # publish=false, the default, is a dry run: it builds and assembles an unsigned tree as an artifact.
@@ -58,6 +59,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: ./.github/actions/mod-host-rpms
+        with:
+          suffix: fmx
 
       - name: Stage the packages and check what they carry
         env:
@@ -71,6 +74,7 @@ jobs:
           for f in release/*.rpm; do rpm -qp --qf '%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}\n' "$f"; done
           evr=$(rpm -qp --qf '%{VERSION}-%{RELEASE}\n' release/*.rpm | sort -u)
           [ "$(printf '%s\n' "$evr" | wc -l)" = 1 ] || { echo "::error::the packages carry more than one version: $evr"; exit 1; }
+          case "$evr" in *.fmx.fc"$FEDORA") ;; *) echo "::error::$evr does not carry the fmx suffix"; exit 1 ;; esac
           case "$evr" in *.fc"$FEDORA") ;; *) echo "::error::$evr is not built for fc$FEDORA"; exit 1 ;; esac
           rpm -qp --provides release/mod-host-protocol-[0-9]*.rpm | grep '^libmod-host-protocol\.so\.0' \
             || { echo "::error::mod-host-protocol does not provide libmod-host-protocol.so.0"; exit 1; }

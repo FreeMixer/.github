@@ -15,6 +15,9 @@ inputs:
   release:
     description: Release of the built packages, without the dist tag; empty keeps the spec's
     default: ''
+  suffix:
+    description: appended to the Release after a dot, before the dist tag (the channel passes fmx); empty keeps the spec's Release
+    default: ''
 
 runs:
   using: composite
@@ -25,6 +28,7 @@ runs:
         SPEC_REF: ${{ inputs.spec-ref }}
         OUT: ${{ inputs.out }}
         RELEASE: ${{ inputs.release }}
+        SUFFIX: ${{ inputs.suffix }}
       run: |
         [ -n "$SPEC_REF" ] || read -r _ _ SPEC_REF < <(grep '^fedora-spec ' "$GITHUB_ACTION_PATH/../../pins.txt")
         export SPEC_REF
