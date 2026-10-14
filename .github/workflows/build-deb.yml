@@ -97,7 +97,21 @@ on:
         type: boolean
         default: true
         description: 'Attach the DEBs, named by Debian release, to the GitHub release of the tag'
+      verify-install:
+        type: boolean
+        default: true
+        description: 'After a publish, install the new version from the channel in a clean container of each release'
+      dispatch-repo:
+        type: string
+        default: 'zerosignage/platform'
+        description: 'Repository whose worker image build is told about the new packages by a repository_dispatch; empty sends nothing'
+      dispatch-event:
+        type: string
+        default: 'freemixer-package-published'
+        description: 'event_type of that repository_dispatch; the worker image build listens for it (client_payload: package, tag, format)'
     secrets:
+      DISPATCH_TOKEN:
+        required: false
       OPENMIXER_PACKAGES_SIGNING_KEY:
         required: false
       RPM_GPG_KEY:
@@ -340,3 +354,84 @@ jobs:
             # lost the race to the RPM job
             gh release upload "$TAG" assets/*.deb --clobber --repo "$GITHUB_REPOSITORY"
           fi
+
+  # The last proof: the version the tag names installs from the channel, in a Debian that holds nothing else.
+  # Pages serves the push a little late, so the check retries before it calls the release broken.
+  verify:
+    name: Install check (${{ matrix.suite }}, ${{ matrix.arch }})
+    needs: [publish, release]
+    if: ${{ !cancelled() && needs.publish.result == 'success' && inputs.publish && inputs.verify-install && (inputs.source-ref != '' || github.ref_type == 'tag') }}
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || inputs.runner }}
+    timeout-minutes: 30
+    container:
+      image: debian:${{ matrix.suite }}
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: ${{ fromJSON(inputs.suite-matrix) }}
+        arch: ${{ fromJSON(inputs.arch-matrix) }}
+    steps:
+      - name: Install the new version from the channel
+        env:
+          TAG: ${{ inputs.source-ref || github.ref_name }}
+          NAME: ${{ inputs.package-name }}
+          BINARIES: ${{ inputs.binary-names }}
+          URL: ${{ inputs.base-url }}/deb
+          SUITE: ${{ matrix.suite }}
+        run: |
+          set -o pipefail
+          ver=${TAG#v}
+          apt-get update -qq
+          apt-get install -y --no-install-recommends curl ca-certificates
+          install -d /etc/apt/keyrings
+          curl -fsSL --retry 5 --retry-all-errors --retry-delay 3 --connect-timeout 20 -o /etc/apt/keyrings/freemixer.asc "$URL/freemixer.asc"
+          echo "deb [signed-by=/etc/apt/keyrings/freemixer.asc] $URL/debian/$SUITE ./" > /etc/apt/sources.list.d/freemixer.list
+          echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80freemixer-retries
+          for bin in ${BINARIES:-$NAME}; do
+            ok=
+            for try in $(seq 1 20); do
+              apt-get update -qq || true
+              if apt-get install -y --no-install-recommends "$bin" && dpkg-query -W -f='${Package} ${Version}\n' "$bin" | tee /dev/stderr | grep -q " ${ver//./\\.}\([-~+]\|$\)"; then ok=1; break; fi
+              echo "attempt $try: $bin $ver is not installable yet"; sleep 30
+            done
+            [ -n "$ok" ] || { echo "::error::$bin $ver does not install from $URL in a clean debian $SUITE"; exit 1; }
+          done
+
+  # A tag that ends without packages must not be silent: the repository gets an issue naming the tag and the
+  # failed jobs. Needs the caller to let the workflow write issues (permissions: issues: write on its job).
+  report-failure:
+    name: Report a failed release
+    needs: [preflight, build, publish, release, verify]
+    if: ${{ always() && inputs.publish && (inputs.source-ref != '' || github.ref_type == 'tag') && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 5
+    permissions:
+      issues: write
+      actions: read
+    steps:
+      - uses: FreeMixer/.github/.github/actions/release-failure-issue@v1
+        with:
+          tag: ${{ inputs.source-ref || github.ref_name }}
+          token: ${{ github.token }}
+          workflow: build-deb
+
+  # Last: tell the worker image build that the channel holds a new version.
+  notify-worker-image:
+    name: Tell the worker image build
+    needs: verify
+    if: ${{ !cancelled() && needs.verify.result == 'success' && inputs.dispatch-repo != '' }}
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 5
+    steps:
+      - name: Send the repository_dispatch
+        env:
+          GH_TOKEN: ${{ secrets.DISPATCH_TOKEN || secrets.PAGES_TOKEN }}
+          TARGET: ${{ inputs.dispatch-repo }}
+          EVENT: ${{ inputs.dispatch-event }}
+          PACKAGE: ${{ inputs.package-name }}
+          TAG: ${{ inputs.source-ref || github.ref_name }}
+        run: |
+          gh api "repos/$TARGET/dispatches" -f event_type="$EVENT" \
+            -f "client_payload[package]=$PACKAGE" -f "client_payload[tag]=$TAG" -f "client_payload[format]=deb" \
+            -f "client_payload[source]=$GITHUB_REPOSITORY"
+          echo "sent $EVENT to $TARGET for $PACKAGE $TAG"
