@@ -148,3 +148,4 @@ runs:
         branch: ${{ inputs.branch }}
         tag: ${{ inputs.tag }}
         what: deb
+        rebuild: 'REQUIRES="${{ inputs.requires }}" CHANGELOGS_URL="${{ inputs.changelogs-url }}" COSIGN="${FREEMIXER_GPG_COSIGN_KEY_ID:-}" "${{ github.action_path }}/publish-tree.sh" build/channel/deb "${{ inputs.deb-dir }}" "$FREEMIXER_GPG_KEY_ID"'

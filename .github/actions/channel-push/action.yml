@@ -18,6 +18,16 @@ inputs:
     description: rpm or deb, for the commit message and the paths added
     required: true
 
+  rebuild:
+    description: >-
+      Command that assembles the tree again in build/channel (the publish-tree.sh call that made it). A push
+      that lost a race resets build/channel to the new tip of the branch, runs this, and commits and pushes
+      again. Empty means a lost race fails the step.
+    default: ''
+  attempts:
+    description: how many times the push is tried
+    default: '6'
+
 runs:
   using: composite
   steps:
@@ -29,6 +39,8 @@ runs:
         CHANNEL: ${{ inputs.channel }}
         TAG: ${{ inputs.tag }}
         WHAT: ${{ inputs.what }}
+        REBUILD: ${{ inputs.rebuild }}
+        ATTEMPTS: ${{ inputs.attempts }}
       run: |
         set -o pipefail
         git -C build/channel add -A "$WHAT"
@@ -39,6 +51,8 @@ runs:
         # Signed or nothing: the key goes into a private keyring (never the RPM signing keyring), and a
         # commit that cannot be signed stops the publish before the push.
         test -n "$SITE_GPG_KEY" || { echo "::error::SITE_GPG_KEY is not set; the channel commit must be signed"; exit 1; }
+        # the rebuild signs the packages with the release key, not with the site key of the commits
+        ORIG_GNUPGHOME=${GNUPGHOME-}
         export GNUPGHOME="$RUNNER_TEMP/site-gnupg"; rm -rf "$GNUPGHOME"; mkdir -m 700 "$GNUPGHOME"
         printf '%s\n' "$SITE_GPG_KEY" | gpg --batch --quiet --import
         SITE_KEY_ID=$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr:/ {print $10; exit}')
@@ -47,7 +61,34 @@ runs:
           -c user.signingkey="$SITE_KEY_ID" commit -q -S -m "$WHAT: publish $TAG (${GITHUB_REPOSITORY##*/})"
         auth=$(printf 'x-access-token:%s' "$PUBLISH_TOKEN" | base64 -w0)
         echo "::add-mask::$auth"
-        git -C build/channel -c http.https://github.com/.extraheader="AUTHORIZATION: basic $auth" \
-          push origin "HEAD:refs/heads/$BRANCH"
+        push() {
+          git -C build/channel -c http.https://github.com/.extraheader="AUTHORIZATION: basic $auth" \
+            push origin "HEAD:refs/heads/$BRANCH"
+        }
+        # Another package's release can push to the channel between our pull and our push. The tree is
+        # shared and only a fast-forward is accepted, so a lost race is repeated on the new tip: the
+        # tree is assembled again there (never rebased: the metadata of two publishes conflicts) and the
+        # commit is signed again.
+        attempt=1
+        until push; do
+          if [ -z "$REBUILD" ] || [ "$attempt" -ge "$ATTEMPTS" ]; then
+            echo "::error::the push to $CHANNEL@$BRANCH failed after $attempt attempt(s)"
+            exit 1
+          fi
+          wait=$(( (RANDOM % 10) + 5 * attempt ))
+          echo "::warning::the push to $CHANNEL@$BRANCH lost a race (attempt $attempt of $ATTEMPTS); again in ${wait}s on the new tip"
+          sleep "$wait"
+          git -C build/channel -c http.https://github.com/.extraheader="AUTHORIZATION: basic $auth" fetch -q origin "$BRANCH"
+          git -C build/channel reset -q --hard FETCH_HEAD
+          if [ -n "$ORIG_GNUPGHOME" ]; then GNUPGHOME=$ORIG_GNUPGHOME bash -c "$REBUILD"; else env -u GNUPGHOME bash -c "$REBUILD"; fi
+          git -C build/channel add -A "$WHAT"
+          if git -C build/channel diff --cached --quiet; then
+            echo "the channel now carries this exact tree -- nothing to push"
+            exit 0
+          fi
+          git -C build/channel -c user.name="Pau Aliagas" -c user.email=linuxnow@gmail.com \
+            -c user.signingkey="$SITE_KEY_ID" commit -q -S -m "$WHAT: publish $TAG (${GITHUB_REPOSITORY##*/})"
+          attempt=$((attempt + 1))
+        done
         gpgconf --kill gpg-agent || true; rm -rf "$GNUPGHOME"
         echo "published $TAG to $CHANNEL@$BRANCH"

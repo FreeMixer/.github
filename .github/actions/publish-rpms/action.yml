@@ -150,3 +150,4 @@ runs:
         branch: ${{ inputs.branch }}
         tag: ${{ inputs.tag }}
         what: rpm
+        rebuild: '"${{ github.action_path }}/publish-tree.sh" build/channel/rpm "${{ inputs.rpm-dir }}" "$FREEMIXER_GPG_KEY_ID"'
