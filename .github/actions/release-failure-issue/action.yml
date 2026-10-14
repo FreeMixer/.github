@@ -1,0 +1,57 @@
+name: release-failure-issue
+description: Open an issue on the repository when a release run failed or was cancelled after its tag
+
+# Run as the last job of build-rpm and build-deb with `if: always()`, so a tag that ended without packages
+# is never silent. One issue per tag: the second workflow of the same tag (rpm, then deb) and a rerun add
+# a comment to the issue that is already open. The failed jobs are read from the run itself.
+#
+# The token needs issues: write on the repository; the calling job grants it.
+
+inputs:
+  tag:
+    description: the release tag
+    required: true
+  token:
+    description: token that may open issues on the repository
+    required: true
+  repository:
+    description: the repository that gets the issue
+    default: ${{ github.repository }}
+  run-id:
+    default: ${{ github.run_id }}
+  workflow:
+    description: which release workflow this is (build-rpm or build-deb), for the text
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        REPO: ${{ inputs.repository }}
+        TAG: ${{ inputs.tag }}
+        RUN_ID: ${{ inputs.run-id }}
+        WORKFLOW: ${{ inputs.workflow }}
+        SERVER: ${{ github.server_url }}
+        RUN_ATTEMPT: ${{ github.run_attempt }}
+      run: |
+        set -o pipefail
+        # the jobs of this run that did not succeed; skipped ones are a consequence, not a cause
+        jobs=$(gh api --paginate "repos/$REPO/actions/runs/$RUN_ID/attempts/$RUN_ATTEMPT/jobs?per_page=100" \
+          --jq '.jobs[] | select(.conclusion == "failure" or .conclusion == "cancelled") | "- \(.name) (\(.conclusion))"') || jobs=
+        [ -n "$jobs" ] || jobs='- (the job list could not be read; see the run)'
+        url="$SERVER/$REPO/actions/runs/$RUN_ID"
+        title="Release $TAG ended without packages"
+        body=$(printf '%s\n' \
+          "The $WORKFLOW release run of \`$TAG\` did not finish." '' \
+          'Jobs that failed or were cancelled:' '' "$jobs" '' \
+          "Run: $url" '' \
+          'The tag may have no RPMs or DEBs in the repository. Rerun the failed jobs; if the cause was transient the run publishes the tag.')
+        existing=$(gh api -X GET search/issues -f q="repo:$REPO is:issue is:open in:title \"$title\"" --jq '.items[0].number // empty') || existing=
+        if [ -n "$existing" ]; then
+          gh api "repos/$REPO/issues/$existing/comments" -f body="$body" >/dev/null
+          echo "commented on issue #$existing"
+        else
+          gh api "repos/$REPO/issues" -f title="$title" -f body="$body" --jq '"opened issue #\(.number)"'
+        fi
