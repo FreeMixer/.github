@@ -95,7 +95,21 @@ on:
         type: boolean
         default: true
         description: 'Attach the signed RPMs to the GitHub release of the tag'
+      verify-install:
+        type: boolean
+        default: true
+        description: 'After a publish, install the new version from the channel in a clean container of each release. false skips the check: the release is then not proven installable, and the worker image dispatch goes out on the publish alone.'
+      dispatch-repo:
+        type: string
+        default: 'zerosignage/platform'
+        description: 'Repository whose worker image build is told about the new packages by a repository_dispatch; empty sends nothing'
+      dispatch-event:
+        type: string
+        default: 'freemixer-package-published'
+        description: 'event_type of that repository_dispatch; the worker image build listens for it (client_payload: package, tag, format)'
     secrets:
+      DISPATCH_TOKEN:
+        required: false
       OPENMIXER_PACKAGES_SIGNING_KEY:
         required: false
       PAGES_TOKEN:
@@ -346,3 +360,97 @@ jobs:
           else
             gh release create "$TAG" signed/*.rpm --title "$TAG" --notes-file "$RUNNER_TEMP/release-notes.md" --repo "$GITHUB_REPOSITORY"
           fi
+
+  # The last proof: the version the tag names installs from the channel, in a fedora that holds nothing else.
+  # Pages serves the push a little late, so the check retries before it calls the release broken.
+  verify:
+    name: Install check (fc${{ inputs.fedora-version }}, ${{ matrix.arch }})
+    needs: [publish, release]
+    if: ${{ !cancelled() && needs.publish.result == 'success' && inputs.publish && inputs.verify-install && (inputs.source-ref != '' || github.ref_type == 'tag') }}
+    runs-on: ${{ matrix.arch == 'aarch64' && 'ubuntu-24.04-arm' || inputs.runner }}
+    timeout-minutes: 30
+    container:
+      image: fedora:${{ inputs.fedora-version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: ${{ fromJSON(inputs.arch-matrix) }}
+    steps:
+      - name: Install the new version from the channel
+        env:
+          TAG: ${{ inputs.source-ref || github.ref_name }}
+          NAME: ${{ inputs.package-name }}
+          BINARIES: ${{ inputs.binary-names }}
+          BASE_URL: ${{ inputs.base-url }}
+        run: |
+          set -o pipefail
+          ver=${TAG#v}
+          dnf install -y --setopt=install_weak_deps=False dnf5-plugins
+          dnf config-manager addrepo --setopt=retries=10 --from-repofile="$BASE_URL/rpm/freemixer.repo"
+          for bin in ${BINARIES:-$NAME}; do
+            ok=
+            for try in $(seq 1 20); do
+              dnf clean expire-cache -q || true
+              if dnf install -y --setopt=install_weak_deps=False --setopt=retries=10 "$bin-$ver"; then ok=1; break; fi
+              echo "attempt $try: $bin-$ver is not installable yet"; sleep 30
+            done
+            [ -n "$ok" ] || { echo "::error::$bin-$ver does not install from $BASE_URL in a clean fedora"; exit 1; }
+            rpm -q --qf '%{NAME} %{VERSION}-%{RELEASE}.%{ARCH}\n' "$bin"
+          done
+
+  # A tag that ends without packages must not be silent: the repository gets an issue naming the tag and the
+  # failed jobs. A called workflow cannot raise the token of its caller: the `permissions` below only narrow it.
+  # The calling release.yml must itself grant `issues: write` in its top-level `permissions:` (or on the job that
+  # calls this workflow). Without it the step fails loudly with an error naming the missing permission.
+  report-failure:
+    name: Report a failed release
+    needs: [preflight, build, publish, release, verify]
+    if: ${{ always() && inputs.publish && (inputs.source-ref != '' || github.ref_type == 'tag') && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 5
+    permissions:
+      issues: write
+      actions: read
+    steps:
+      - uses: FreeMixer/.github/.github/actions/release-failure-issue@v1
+        with:
+          tag: ${{ inputs.source-ref || github.ref_name }}
+          token: ${{ github.token }}
+          workflow: build-rpm
+
+  # Last: tell the worker image build that the channel holds a new version. Nothing listens for the event yet,
+  # so this job may not fail the release (continue-on-error) and says so in its notice when it has no token.
+  # Token: DISPATCH_TOKEN, an organisation secret that may dispatch events to dispatch-repo. PAGES_TOKEN is
+  # used only when DISPATCH_TOKEN is unset, and the notice says so: its scope is not recorded, so a 403 there
+  # is expected and not a release failure. With verify-install false the install check is skipped and the
+  # dispatch still goes out once the publish succeeded.
+  notify-worker-image:
+    name: Tell the worker image build
+    needs: [publish, verify]
+    if: ${{ !cancelled() && needs.publish.result == 'success' && (needs.verify.result == 'success' || needs.verify.result == 'skipped') && inputs.publish && (inputs.source-ref != '' || github.ref_type == 'tag') && inputs.dispatch-repo != '' }}
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 5
+    continue-on-error: true
+    steps:
+      - name: Send the repository_dispatch
+        env:
+          DISPATCH_TOKEN: ${{ secrets.DISPATCH_TOKEN }}
+          PAGES_TOKEN: ${{ secrets.PAGES_TOKEN }}
+          TARGET: ${{ inputs.dispatch-repo }}
+          EVENT: ${{ inputs.dispatch-event }}
+          PACKAGE: ${{ inputs.package-name }}
+          TAG: ${{ inputs.source-ref || github.ref_name }}
+        run: |
+          if [ -n "$DISPATCH_TOKEN" ]; then
+            export GH_TOKEN="$DISPATCH_TOKEN"
+          elif [ -n "$PAGES_TOKEN" ]; then
+            export GH_TOKEN="$PAGES_TOKEN"
+            echo "::notice::DISPATCH_TOKEN is not set; trying PAGES_TOKEN, whose scope on $TARGET is not recorded. Set DISPATCH_TOKEN to make this reliable."
+          else
+            echo "::notice::no DISPATCH_TOKEN (and no PAGES_TOKEN): the worker image build was not told about $PACKAGE $TAG"
+            exit 0
+          fi
+          gh api "repos/$TARGET/dispatches" -f event_type="$EVENT" \
+            -f "client_payload[package]=$PACKAGE" -f "client_payload[tag]=$TAG" -f "client_payload[format]=rpm" \
+            -f "client_payload[source]=$GITHUB_REPOSITORY"
+          echo "sent $EVENT to $TARGET for $PACKAGE $TAG"

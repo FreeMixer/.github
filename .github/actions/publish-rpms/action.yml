@@ -115,13 +115,11 @@ runs:
           test -n "$(find "$tree" -name repomd.xml.asc -print -quit)" || { echo "::error::repodata is not signed"; exit 1; }
         fi
 
-    - name: Write the dnf repo file and keep the signed copies
+    - name: Write the dnf repo file
       if: inputs.sign == 'true'
       shell: bash
       env:
-        RPM_DIR: ${{ inputs.rpm-dir }}
         BASE_URL: ${{ inputs.base-url }}
-        SIGNED_DIR: ${{ inputs.signed-dir }}
       run: |
         set -euo pipefail
         printf '%s\n' '[freemixer]' 'name=FreeMixer' \
@@ -133,13 +131,6 @@ runs:
           'enabled=1' 'gpgcheck=1' 'repo_gpgcheck=1' \
           "gpgkey=$BASE_URL/rpm/RPM-GPG-KEY-freemixer" > build/channel/rpm/freemixer.repo
         cat build/channel/rpm/freemixer.repo
-        mkdir -p "$SIGNED_DIR"
-        while IFS= read -r f; do
-          found=$(find build/channel/rpm -name "$(basename "$f")" -print -quit)
-          test -n "$found" || { echo "::error::$(basename "$f") is not in the tree"; exit 1; }
-          cp "$found" "$SIGNED_DIR/"
-        done < <(find "$RPM_DIR" -name '*.rpm' | sort)
-        ls "$SIGNED_DIR"
 
     - uses: FreeMixer/.github/.github/actions/channel-push@v1
       if: inputs.sign == 'true'
@@ -150,3 +141,22 @@ runs:
         branch: ${{ inputs.branch }}
         tag: ${{ inputs.tag }}
         what: rpm
+        rebuild: '"${{ github.action_path }}/publish-tree.sh" build/channel/rpm "${{ inputs.rpm-dir }}" "$FREEMIXER_GPG_KEY_ID"'
+
+    # After the push: a push that lost a race rebuilds and re-signs the tree, and the copies must be the bytes
+    # the channel serves, not those of the first attempt.
+    - name: Keep the signed copies
+      if: inputs.sign == 'true'
+      shell: bash
+      env:
+        RPM_DIR: ${{ inputs.rpm-dir }}
+        SIGNED_DIR: ${{ inputs.signed-dir }}
+      run: |
+        set -euo pipefail
+        mkdir -p "$SIGNED_DIR"
+        while IFS= read -r f; do
+          found=$(find build/channel/rpm -name "$(basename "$f")" -print -quit)
+          test -n "$found" || { echo "::error::$(basename "$f") is not in the tree"; exit 1; }
+          cp "$found" "$SIGNED_DIR/"
+        done < <(find "$RPM_DIR" -name '*.rpm' | sort)
+        ls "$SIGNED_DIR"
