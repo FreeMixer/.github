@@ -123,6 +123,19 @@ runs:
           test -s "$tree/freemixer.asc" || { echo "::error::no public key in the tree"; exit 1; }
         fi
 
+    - uses: FreeMixer/.github/.github/actions/channel-push@v1
+      if: inputs.sign == 'true'
+      with:
+        publish-token: ${{ inputs.publish-token }}
+        site-gpg-key: ${{ inputs.site-gpg-key }}
+        channel: ${{ inputs.channel }}
+        branch: ${{ inputs.branch }}
+        tag: ${{ inputs.tag }}
+        what: deb
+        rebuild: 'REQUIRES="${{ inputs.requires }}" CHANGELOGS_URL="${{ inputs.changelogs-url }}" COSIGN="${FREEMIXER_GPG_COSIGN_KEY_ID:-}" "${{ github.action_path }}/publish-tree.sh" build/channel/deb "${{ inputs.deb-dir }}" "$FREEMIXER_GPG_KEY_ID"'
+
+    # After the push: a push that lost a race rebuilds and re-signs the tree, and the copies must be the bytes
+    # the channel serves, not those of the first attempt.
     - name: Keep the published copies
       if: inputs.sign == 'true'
       shell: bash
@@ -138,14 +151,3 @@ runs:
           cp "$found" "$SIGNED_DIR/"
         done < <(find "$DEB_DIR" -name '*.deb' | sort)
         ls "$SIGNED_DIR"
-
-    - uses: FreeMixer/.github/.github/actions/channel-push@v1
-      if: inputs.sign == 'true'
-      with:
-        publish-token: ${{ inputs.publish-token }}
-        site-gpg-key: ${{ inputs.site-gpg-key }}
-        channel: ${{ inputs.channel }}
-        branch: ${{ inputs.branch }}
-        tag: ${{ inputs.tag }}
-        what: deb
-        rebuild: 'REQUIRES="${{ inputs.requires }}" CHANGELOGS_URL="${{ inputs.changelogs-url }}" COSIGN="${FREEMIXER_GPG_COSIGN_KEY_ID:-}" "${{ github.action_path }}/publish-tree.sh" build/channel/deb "${{ inputs.deb-dir }}" "$FREEMIXER_GPG_KEY_ID"'

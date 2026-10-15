@@ -98,7 +98,7 @@ on:
       verify-install:
         type: boolean
         default: true
-        description: 'After a publish, install the new version from the channel in a clean container of each release'
+        description: 'After a publish, install the new version from the channel in a clean container of each release. false skips the check: the release is then not proven installable, and the worker image dispatch goes out on the publish alone.'
       dispatch-repo:
         type: string
         default: 'zerosignage/platform'
@@ -399,7 +399,9 @@ jobs:
           done
 
   # A tag that ends without packages must not be silent: the repository gets an issue naming the tag and the
-  # failed jobs. Needs the caller to let the workflow write issues (permissions: issues: write on its job).
+  # failed jobs. A called workflow cannot raise the token of its caller: the `permissions` below only narrow it.
+  # The calling release.yml must itself grant `issues: write` in its top-level `permissions:` (or on the job that
+  # calls this workflow). Without it the step fails loudly with an error naming the missing permission.
   report-failure:
     name: Report a failed release
     needs: [preflight, build, publish, release, verify]
@@ -416,22 +418,38 @@ jobs:
           token: ${{ github.token }}
           workflow: build-rpm
 
-  # Last: tell the worker image build that the channel holds a new version.
+  # Last: tell the worker image build that the channel holds a new version. Nothing listens for the event yet,
+  # so this job may not fail the release (continue-on-error) and says so in its notice when it has no token.
+  # Token: DISPATCH_TOKEN, an organisation secret that may dispatch events to dispatch-repo. PAGES_TOKEN is
+  # used only when DISPATCH_TOKEN is unset, and the notice says so: its scope is not recorded, so a 403 there
+  # is expected and not a release failure. With verify-install false the install check is skipped and the
+  # dispatch still goes out once the publish succeeded.
   notify-worker-image:
     name: Tell the worker image build
-    needs: verify
-    if: ${{ !cancelled() && needs.verify.result == 'success' && inputs.dispatch-repo != '' }}
+    needs: [publish, verify]
+    if: ${{ !cancelled() && needs.publish.result == 'success' && (needs.verify.result == 'success' || needs.verify.result == 'skipped') && inputs.publish && (inputs.source-ref != '' || github.ref_type == 'tag') && inputs.dispatch-repo != '' }}
     runs-on: ${{ inputs.runner }}
     timeout-minutes: 5
+    continue-on-error: true
     steps:
       - name: Send the repository_dispatch
         env:
-          GH_TOKEN: ${{ secrets.DISPATCH_TOKEN || secrets.PAGES_TOKEN }}
+          DISPATCH_TOKEN: ${{ secrets.DISPATCH_TOKEN }}
+          PAGES_TOKEN: ${{ secrets.PAGES_TOKEN }}
           TARGET: ${{ inputs.dispatch-repo }}
           EVENT: ${{ inputs.dispatch-event }}
           PACKAGE: ${{ inputs.package-name }}
           TAG: ${{ inputs.source-ref || github.ref_name }}
         run: |
+          if [ -n "$DISPATCH_TOKEN" ]; then
+            export GH_TOKEN="$DISPATCH_TOKEN"
+          elif [ -n "$PAGES_TOKEN" ]; then
+            export GH_TOKEN="$PAGES_TOKEN"
+            echo "::notice::DISPATCH_TOKEN is not set; trying PAGES_TOKEN, whose scope on $TARGET is not recorded. Set DISPATCH_TOKEN to make this reliable."
+          else
+            echo "::notice::no DISPATCH_TOKEN (and no PAGES_TOKEN): the worker image build was not told about $PACKAGE $TAG"
+            exit 0
+          fi
           gh api "repos/$TARGET/dispatches" -f event_type="$EVENT" \
             -f "client_payload[package]=$PACKAGE" -f "client_payload[tag]=$TAG" -f "client_payload[format]=rpm" \
             -f "client_payload[source]=$GITHUB_REPOSITORY"

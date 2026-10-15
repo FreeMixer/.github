@@ -5,7 +5,9 @@ description: Open an issue on the repository when a release run failed or was ca
 # is never silent. One issue per tag: the second workflow of the same tag (rpm, then deb) and a rerun add
 # a comment to the issue that is already open. The failed jobs are read from the run itself.
 #
-# The token needs issues: write on the repository; the calling job grants it.
+# The token needs issues: write on the repository. The caller's release.yml must grant it (top-level
+# `permissions: issues: write`): a called workflow cannot raise the token it was given, so without it the
+# step ends in a loud error rather than a silent miss.
 
 inputs:
   tag:
@@ -48,10 +50,18 @@ runs:
           'Jobs that failed or were cancelled:' '' "$jobs" '' \
           "Run: $url" '' \
           'The tag may have no RPMs or DEBs in the repository. Rerun the failed jobs; if the cause was transient the run publishes the tag.')
-        existing=$(gh api -X GET search/issues -f q="repo:$REPO is:issue is:open in:title \"$title\"" --jq '.items[0].number // empty') || existing=
+        # the open-issues list is strongly consistent (the search index is not, and lags a new issue); the title
+        # is matched exactly, so a similar title never takes the comment
+        existing=$(gh api --paginate "repos/$REPO/issues?state=open&per_page=100" \
+          | jq -r --arg t "$title" '.[] | select(.pull_request == null and .title == $t) | .number' | sed -n 1p) || existing=
+        fail() {
+          echo "::error::could not write the issue for $TAG: $1"
+          echo "::error::if this is 403 'Resource not accessible by integration', the calling release.yml lacks 'issues: write' in its top-level permissions: a called workflow cannot raise the caller's token"
+          exit 1
+        }
         if [ -n "$existing" ]; then
-          gh api "repos/$REPO/issues/$existing/comments" -f body="$body" >/dev/null
+          gh api "repos/$REPO/issues/$existing/comments" -f body="$body" >/dev/null || fail "commenting on #$existing"
           echo "commented on issue #$existing"
         else
-          gh api "repos/$REPO/issues" -f title="$title" -f body="$body" --jq '"opened issue #\(.number)"'
+          gh api "repos/$REPO/issues" -f title="$title" -f body="$body" --jq '"opened issue #\(.number)"' || fail "opening the issue"
         fi

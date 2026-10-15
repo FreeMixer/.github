@@ -93,3 +93,12 @@ jobs:
       - run: apt-get update -qq && apt-get install -y --no-install-recommends apt-utils dpkg-dev debhelper build-essential python3 apt ca-certificates
       - uses: actions/checkout@v4
       - run: tests/deb-changelog.sh
+
+  channel-push-race:
+    name: channel push survives a lost race
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -c 'import yaml' || sudo apt-get install -y python3-yaml
+      - run: tests/channel-push-race.sh
