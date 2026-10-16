@@ -254,8 +254,9 @@ jobs:
     timeout-minutes: 30
     container:
       image: debian:trixie
+    # A dry run (publish false) pushes nothing, so it gets its own group per run.
     concurrency:
-      group: publish-${{ inputs.target-repo }}
+      group: publish-${{ inputs.target-repo }}-${{ inputs.publish && 'live' || github.run_id }}
       cancel-in-progress: false
     env:
       DO_PUBLISH: ${{ inputs.publish && (inputs.source-ref != '' || github.ref_type == 'tag') }}

@@ -279,8 +279,10 @@ jobs:
       image: fedora:${{ inputs.fedora-version }}
     # The tree of the target repository is shared by every package and race-protected only by git's
     # refusal of a non-fast-forward push; one group per target serialises this organisation's runs.
+    # A dry run (publish false) pushes nothing, so it gets a group of its own: sharing the live group made
+    # concurrent pull-request dry runs cancel each other's pending job.
     concurrency:
-      group: publish-${{ inputs.target-repo }}
+      group: publish-${{ inputs.target-repo }}-${{ inputs.publish && 'live' || github.run_id }}
       cancel-in-progress: false
     env:
       DO_PUBLISH: ${{ inputs.publish && (inputs.source-ref != '' || github.ref_type == 'tag') }}
