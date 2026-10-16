@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Pau Aliagas <linuxnow@gmail.com>
 Build-Depends: debhelper-compat (= 13), python3, pkgconf
 Standards-Version: 4.6.2
-Homepage: https://github.com/linuxnow/mod-host
+Homepage: https://github.com/mod-audio/mod-host
 Rules-Requires-Root: no
 
 Package: libmod-host-protocol0

@@ -2,13 +2,11 @@ name: mod-host-rpms
 description: Build the mod-host, mod-host-protocol and mod-host-protocol-devel RPMs and install them
 
 # What a host repository's RPM build needs for BuildRequires: pkgconfig(mod-host-protocol), and for
-# a smoke test the mod-host binary itself. Built from the audinux spec of linuxnow/fedora-spec,
-# the package the distribution will carry. Runs in a Fedora container as root.
+# a smoke test the mod-host binary itself. Built from packaging/mod-host, the audinux spec with the
+# upstream pull requests it carries (docs/mod-host-carried-patches.md). The installed library is then
+# checked for mod-audio/mod-host#113: a package without it fails here. Runs in a Fedora container as root.
 
 inputs:
-  spec-ref:
-    description: commit of linuxnow/fedora-spec holding moddevices/mod-host.spec; empty takes the pin of .github/pins.txt
-    default: ''
   out:
     description: directory the RPMs are copied to
     default: mod-host-rpms
@@ -25,14 +23,10 @@ runs:
     - name: Build the mod-host RPMs
       shell: bash
       env:
-        SPEC_REF: ${{ inputs.spec-ref }}
         OUT: ${{ inputs.out }}
         RELEASE: ${{ inputs.release }}
         SUFFIX: ${{ inputs.suffix }}
-      run: |
-        [ -n "$SPEC_REF" ] || read -r _ _ SPEC_REF < <(grep '^fedora-spec ' "$GITHUB_ACTION_PATH/../../pins.txt")
-        export SPEC_REF
-        "$GITHUB_ACTION_PATH/build.sh" "$OUT"
+      run: '"$GITHUB_ACTION_PATH/build.sh" "$OUT"'
 
     - name: Install mod-host and its protocol library
       shell: bash
@@ -43,3 +37,8 @@ runs:
         dnf install -y --setopt=install_weak_deps=False "$OUT"/mod-host-[0-9]*.rpm "$OUT"/mod-host-protocol-[0-9]*.rpm \
           "$OUT"/mod-host-protocol-devel-*.rpm
         pkg-config --modversion mod-host-protocol
+
+    # the exact-1024-byte command and the framing of mod-audio/mod-host#113, against the installed package
+    - name: Check the installed library splits commands at their NUL
+      shell: bash
+      run: '"$GITHUB_ACTION_PATH/../../../packaging/mod-host/framing-test.sh"'

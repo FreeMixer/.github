@@ -65,7 +65,7 @@ on:
       needs-mod-host:
         type: boolean
         default: true
-        description: 'Build and install mod-host-protocol-devel from the pinned mod-host first (BuildRequires pkgconfig(mod-host-protocol))'
+        description: 'Build and install mod-host-protocol-devel from packaging/mod-host first (BuildRequires pkgconfig(mod-host-protocol))'
       build-packages:
         type: string
         default: ''

@@ -1,3 +1,13 @@
+mod-host-protocol (0.1.0-6~fmx) unstable; urgency=medium
+
+  * Built from upstream mod-host f14a230 with the patches of
+    packaging/mod-host, the same code as the mod-host-protocol RPM.
+  * mod-audio/mod-host#112: no read before the start of an empty command.
+  * mod-audio/mod-host#113: socket input is split into NUL-terminated
+    commands; a command of exactly 1024 bytes no longer hangs.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Fri, 16 Oct 2026 12:42:03 +0200
+
 mod-host-protocol (0.1.0-5) unstable; urgency=medium
 
   * Built from linuxnow/mod-host tag 0.10.6-3-fmx (ce0d247): #109:

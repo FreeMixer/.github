@@ -1,13 +1,11 @@
 name: mod-host-protocol
-description: Build libmod-host-protocol from a linuxnow/mod-host commit and install it into a prefix
+description: Build libmod-host-protocol from mod-host and the patches FreeMixer carries, and install it into a prefix
 
-# One way to get the protocol library for every FreeMixer host repository, until the distribution
-# ships mod-host-protocol-devel. The caller has git, gcc, make, python3 and pkg-config.
+# One way to get the protocol library for every FreeMixer host repository's source build: mod-host laid out as
+# packaging/mod-host/mod-host.spec builds it, the same code as the published packages. The installed library is
+# checked for mod-audio/mod-host#113. The caller has git, gcc, make, python3 and pkg-config.
 
 inputs:
-  ref:
-    description: commit of linuxnow/mod-host; empty takes the pin of .github/pins.txt
-    default: ''
   prefix:
     description: where the library, its headers and its pkg-config file are installed
     default: /opt/mod-host-protocol
@@ -15,24 +13,8 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Resolve the commit
-      id: pin
-      shell: bash
-      env:
-        REF: ${{ inputs.ref }}
-      run: |
-        set -euo pipefail
-        [ -n "$REF" ] || read -r _ _ REF < <(grep '^mod-host-protocol ' "$GITHUB_ACTION_PATH/../../pins.txt")
-        echo "ref=$REF" >> "$GITHUB_OUTPUT"
-
-    - uses: actions/checkout@v4
-      with:
-        repository: linuxnow/mod-host
-        ref: ${{ steps.pin.outputs.ref }}
-        path: mod-host
-
     # PKG_CONFIG_PATH finds the library at build time and LD_LIBRARY_PATH at run time: the
-    # .pc file carries no rpath. MOD_HOST_DIR is the checkout, which holds the scenario corpus
+    # .pc file carries no rpath. MOD_HOST_DIR is the source tree, which holds the scenario corpus
     # and README that plugin-hostd's contract test reads.
     - name: Install the protocol library
       shell: bash
@@ -40,6 +22,8 @@ runs:
         PREFIX: ${{ inputs.prefix }}
       run: |
         set -euo pipefail
+        carried=$GITHUB_ACTION_PATH/../../../packaging/mod-host
+        "$carried/prepare-source.sh" mod-host
         make -C mod-host lib
         make -C mod-host install-lib PREFIX="$PREFIX" LIBDIR="$PREFIX/lib"
         {
@@ -48,3 +32,4 @@ runs:
           echo "LD_LIBRARY_PATH=$PREFIX/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
         } >> "$GITHUB_ENV"
         PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig" pkg-config --modversion mod-host-protocol
+        "$carried/framing-test.sh" "$PREFIX"

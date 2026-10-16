@@ -1,10 +1,11 @@
 name: mod-host-protocol DEBs
 
-# Builds libmod-host-protocol0 and libmod-host-protocol-dev from the pin of .github/pins.txt for every Debian
-# release and architecture and publishes them into deb/ of the Pages repository, where omx-clap-host and
-# plugin-hostd Depend on them as the RPMs Require libmod-host-protocol.so.0. Run by hand, once per pin: the
-# packages carry the version of actions/deb-deps/mod-host-protocol/changelog, and a published version is never
-# rebuilt with new bytes, so a moved pin needs a new changelog entry with it.
+# Builds libmod-host-protocol0 and libmod-host-protocol-dev from packaging/mod-host, the same source and patches
+# as the RPMs, for every Debian release and architecture and publishes them into deb/ of the Pages repository,
+# where omx-clap-host and plugin-hostd Depend on them as the RPMs Require libmod-host-protocol.so.0. Run by hand,
+# once per change of packaging/mod-host: the packages carry the version of
+# actions/deb-deps/mod-host-protocol/changelog, and a published version is never rebuilt with new bytes, so a
+# change needs a new changelog entry with it.
 #
 # publish=false, the default, is a dry run: it builds and assembles an unsigned tree as an artifact.
 

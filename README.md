@@ -28,6 +28,7 @@ version name. A version name does not say which bytes you have; a commit does. S
 - Every package we publish can be traced back to the exact upstream commit it was built from.
 - CI, the build machines and a developer's desk all build the same thing; nothing drifts when upstream moves.
 - A change of dependency is one reviewed line here, with its changelog entry, so you can see when and why it moved.
-- What we ship is what we posted upstream: the mod-host pin is the tag of the patch set in our pull requests.
+- mod-host is not pinned here: `packaging/mod-host` carries the audinux spec and the upstream pull requests it
+  applies, one patch file per pull request, until audinux ships them (`docs/mod-host-carried-patches.md`).
 
 A published version is never rebuilt with new bytes. To change what goes in, move the pin and bump the version.
