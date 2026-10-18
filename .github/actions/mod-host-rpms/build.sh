@@ -33,7 +33,14 @@ dnf install -y --setopt=install_weak_deps=False rpm-build rpmdevtools dnf5-plugi
     pipewire-jack-audio-connection-kit-devel
 spectool -g -C "$top/SOURCES" "$top/SPECS/mod-host.spec"
 dnf builddep -y --setopt=install_weak_deps=False "$top/SPECS/mod-host.spec"
-rpmbuild --define "_topdir $top" -bb "$top/SPECS/mod-host.spec"
+rpmbuild --define "_topdir $top" -ba "$top/SPECS/mod-host.spec"
 
 find "$top/RPMS" -name '*.rpm' -exec cp {} "$out/" \;
+# the source package the binaries name in their SOURCERPM header, in a directory of its own so that the
+# mod-host-[0-9]*.rpm globs of the callers never match it
+mkdir -p "$out/SRPMS"
+find "$top/SRPMS" -name '*.src.rpm' -exec cp {} "$out/SRPMS/" \;
+srpm=$(ls "$out"/SRPMS/mod-host-[0-9]*.src.rpm)
+[ "$(rpm -qp --qf '%{SOURCERPM}' "$out"/mod-host-[0-9]*.rpm | sort -u)" = "$(basename "$srpm")" ] ||
+    { echo "the binaries do not name $(basename "$srpm") as their source package" >&2; exit 1; }
 ls "$out"/mod-host-[0-9]*.rpm "$out"/mod-host-protocol-[0-9]*.rpm "$out"/mod-host-protocol-devel-*.rpm

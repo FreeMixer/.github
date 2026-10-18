@@ -8,7 +8,7 @@ description: Build the mod-host, mod-host-protocol and mod-host-protocol-devel R
 
 inputs:
   out:
-    description: directory the RPMs are copied to
+    description: directory the RPMs are copied to; the source package the binaries were built from is kept in SRPMS/ under it
     default: mod-host-rpms
   release:
     description: Release of the built packages, without the dist tag; empty keeps the spec's

@@ -72,6 +72,12 @@ jobs:
           mkdir -p release
           cp mod-host-rpms/mod-host-[0-9]*."$ARCH".rpm mod-host-rpms/mod-host-protocol-[0-9]*."$ARCH".rpm \
             mod-host-rpms/mod-host-protocol-devel-[0-9]*."$ARCH".rpm release/
+          # the source package is the same for both architectures: one build files it, so the two never race for the name
+          if [ "$ARCH" = x86_64 ]; then
+            cp mod-host-rpms/SRPMS/mod-host-[0-9]*.src.rpm release/
+            [ "$(rpm -qp --qf '%{SOURCERPM}' release/mod-host-[0-9]*."$ARCH".rpm)" = "$(basename release/*.src.rpm)" ] \
+              || { echo "::error::the binaries do not name the staged source package"; exit 1; }
+          fi
           for f in release/*.rpm; do rpm -qp --qf '%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}\n' "$f"; done
           evr=$(rpm -qp --qf '%{VERSION}-%{RELEASE}\n' release/*.rpm | sort -u)
           [ "$(printf '%s\n' "$evr" | wc -l)" = 1 ] || { echo "::error::the packages carry more than one version: $evr"; exit 1; }
@@ -126,6 +132,23 @@ jobs:
           gpg-key: ${{ secrets.OPENMIXER_PACKAGES_SIGNING_KEY }}
           publish-token: ${{ secrets.PAGES_TOKEN }}
           site-gpg-key: ${{ secrets.SITE_GPG_KEY }}
+
+      # the release record: where the source package is served and its sha256, for a consumer to pin
+      - name: Record the source package
+        run: |
+          set -euo pipefail
+          # a signed publish serves the signed copy, whose bytes differ from the built file's
+          if [ "$DO_PUBLISH" = true ]; then dir=signed; else dir=collected; fi
+          srpm=$(ls "$dir"/mod-host-[0-9]*.src.rpm)
+          name=$(basename "$srpm")
+          rel=$(rpm -qp --qf '%{RELEASE}' "$srpm" | sed -n 's/.*\.fc\([0-9][0-9]*\).*/\1/p')
+          {
+            echo "### Source package"
+            echo
+            echo "- url: https://freemixer.github.io/rpm/fedora/$rel/SRPMS/$name"
+            echo "- sha256: $(sha256sum "$srpm" | cut -d' ' -f1)"
+            echo "- published: $DO_PUBLISH ($dir copy)"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v4
         if: env.DO_PUBLISH != 'true'
