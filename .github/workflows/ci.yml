@@ -84,6 +84,7 @@ jobs:
       - run: dnf install -y --setopt=install_weak_deps=False rpm-build createrepo_c python3-rpm dnf5 findutils
       - uses: actions/checkout@v4
       - run: tests/updateinfo.sh
+      - run: tests/srpm-publish.sh
 
   deb-changelog:
     name: apt changelog from the published tree
