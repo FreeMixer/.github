@@ -17,6 +17,21 @@ permissions:
   contents: read
 
 jobs:
+  ai-trace-check:
+    name: ai-trace-check action
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - run: tests/ai-trace-check.sh
+      - run: tests/preamble-actions.sh
+      - name: The action reads this pull request's own commits
+        if: github.event_name == 'pull_request'
+        uses: ./.github/actions/ai-trace-check
+
   key-transition:
     name: Key transition (${{ matrix.kind }})
     runs-on: ubuntu-latest
