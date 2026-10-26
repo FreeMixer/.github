@@ -1,3 +1,9 @@
+openmixer-release (1-2) unstable; urgency=medium
+
+  * The first published release: the signing key id reaches the publish step.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Mon, 26 Oct 2026 21:30:00 +0100
+
 openmixer-release (1-1) unstable; urgency=medium
 
   * The OpenMixer apt source for bookworm and trixie, and its key.
