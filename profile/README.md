@@ -21,7 +21,7 @@ means the piece does not ship in that form.
 | [omx-contract](https://github.com/FreeMixer/omx-contract) | the declarations every piece agrees on: parameters, units, limits, codes | `omx-contract-devel` | `libomx-contract-dev` | `@openmixer/omx-contract` |
 | [plugin-qualify](https://github.com/FreeMixer/plugin-qualify) | checks a plugin for real-time safety and cost before a stage runs it | `plugin-qualify` | `plugin-qualify` | - |
 | [libreac](https://github.com/FreeREAC/libreac) and [reac-pw](https://github.com/FreeREAC/reac-pw) | the REAC protocol and its PipeWire bridge, for Roland stageboxes | `libreac`, `reac-pw` | `libreac-dev`, `reac-pw` | - |
-| [libdiginet](https://github.com/FreeMixer/libdiginet) | the Digidesign Control|24 and ProControl surface protocol over Ethernet, a C library with a probe tool | `libdiginet`, `diginet-tools` | `libdiginet-dev`, `diginet-tools` | - |
+| [libdiginet](https://github.com/FreeMixer/libdiginet) | the Digidesign Control&#124;24 and ProControl surface protocol over Ethernet, a C library with a probe tool | `libdiginet`, `diginet-tools` | `libdiginet-dev`, `diginet-tools` | - |
 | mod-host and the protocol library | the plugin host most of the above can drive; our changes are open [pull requests upstream](https://github.com/mod-audio/mod-host/pulls) | `mod-host`, `mod-host-protocol` | `libmod-host-protocol-dev` | - |
 
 Repository, package and pkg-config names of every piece:
