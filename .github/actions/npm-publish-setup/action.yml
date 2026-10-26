@@ -1,0 +1,24 @@
+name: npm-publish-setup
+description: Node and an npm that can publish with trusted publishing (npm 11.5.1 or later)
+
+# The preamble of every npm publish job: setup-node with the npm registry, then npm 11. The job needs
+# permissions id-token: write at job level, or npm never attempts the OIDC exchange and fails with ENEEDAUTH.
+
+inputs:
+  node-version:
+    description: the Node major to install
+    default: '22'
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        registry-url: 'https://registry.npmjs.org'
+    - name: npm 11 (trusted publishing needs >= 11.5.1)
+      shell: bash
+      run: |
+        set -euo pipefail
+        npm install -g npm@'^11'
+        npm --version

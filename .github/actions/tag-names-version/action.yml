@@ -1,0 +1,42 @@
+name: tag-names-version
+description: Fail when the pushed tag is not the version the source declares
+
+# The tag is the version. Give the version (read from package.json, a spec or Cargo by the caller, or from the
+# `version-command`) and the tag it must be; on a branch run the step does nothing. The version is the output.
+
+inputs:
+  version:
+    description: the declared version; empty to take it from version-command
+    default: ''
+  version-command:
+    description: a shell command that prints the declared version (used when version is empty)
+    default: ''
+  prefix:
+    description: what the tag adds before the version
+    default: v
+outputs:
+  version:
+    description: the declared version
+    value: ${{ steps.check.outputs.version }}
+
+runs:
+  using: composite
+  steps:
+    - id: check
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+        VERSION_COMMAND: ${{ inputs.version-command }}
+        PREFIX: ${{ inputs.prefix }}
+        REF_TYPE: ${{ github.ref_type }}
+        REF_NAME: ${{ github.ref_name }}
+      run: |
+        set -euo pipefail
+        v=$VERSION
+        [ -n "$v" ] || { [ -n "$VERSION_COMMAND" ] && v=$(bash -c "$VERSION_COMMAND"); }
+        [ -n "$v" ] || { echo '::error::tag-names-version: no version given'; exit 1; }
+        echo "version=$v" >> "$GITHUB_OUTPUT"
+        if [ "$REF_TYPE" = tag ] && [ "$REF_NAME" != "$PREFIX$v" ]; then
+          echo "::error::tag $REF_NAME is not $PREFIX$v"
+          exit 1
+        fi

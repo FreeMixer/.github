@@ -1,0 +1,29 @@
+name: release-attach
+description: Attach files to the GitHub release of the tag being built
+
+# Files are matched by shell glob; none matching is a failure, never a silent skip. Runs on a tag only.
+# The job needs permissions contents: write.
+
+inputs:
+  files:
+    description: space-separated paths or globs
+    required: true
+  tag:
+    description: the release tag
+    default: ${{ github.ref_name }}
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        FILES: ${{ inputs.files }}
+        TAG: ${{ inputs.tag }}
+      run: |
+        set -euo pipefail
+        shopt -s nullglob
+        # shellcheck disable=SC2206
+        set -- $FILES
+        [ "$#" -gt 0 ] || { echo "::error::release-attach: nothing matches: $FILES"; exit 1; }
+        gh release upload "$TAG" "$@" --clobber --repo "$GITHUB_REPOSITORY"
