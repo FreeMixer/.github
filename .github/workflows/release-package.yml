@@ -335,5 +335,5 @@ jobs:
           else
             packaging/openmixer-release/install-check.sh "$BASE_URL/deb/openmixer-release.deb" "$DEB_PROBE"
             apt-cache madison openmixer-release | tee served
-            grep -q "| $EVR |" served || { echo "::error::the openmixer source does not serve openmixer-release $EVR"; exit 1; }
+            grep -qE "\| +$EVR +\|" served || { echo "::error::the openmixer source does not serve openmixer-release $EVR"; exit 1; }
           fi
