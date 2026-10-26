@@ -41,30 +41,36 @@ hand on main with `publish` set. GitHub Actions builds and signs them; nothing i
 
 ## Versions
 
-RPM: Version is the spec's, `0.10.6.f14a230`. Release is `11.1`, and the channel build appends `.fmx`, so the
-published packages are `0.10.6.f14a230-11.1.fmx.fc44`. RPM orders them like this:
+RPM: Version is the spec's, `0.10.6.f14a230`. Release is `11.1`, and the channel build appends `.omx`, the suffix
+of every package openmixer rebuilds, so the published packages are `0.10.6.f14a230-11.1.omx.fc44`. The channel's
+earlier builds carry `.fmx`; RPM compares alphabetic segments as strings, so `omx` sorts above `fmx` and the omx
+build upgrades the fmx build of the same Release. RPM orders them like this:
 
 | package | sorts |
 |---|---|
-| `11.fmx.fc44`, our previous channel build, without #112/#113 | below ours |
+| `11.fmx.fc44`, an earlier channel build, without #112/#113 | below ours |
 | `11.fc44`, audinux today, without #112/#113 | below ours |
-| `11.1.fmx.fc44`, ours | |
+| `11.1.fmx.fc44`, an earlier channel build, the same code as ours | below ours |
+| `11.1.omx.fc44`, ours | |
 | `12.fc44`, audinux once #94 is merged | above ours, and replaces it |
 
 PR #94 proposes Release 12. Our 11.1 sits below it on purpose: the day audinux publishes 12, a machine with both
 repositories updates to audinux's package and ours is never chosen again. No Epoch is used: an Epoch would win
 over audinux for good. `ci.yml` checks each of these comparisons with `rpm.vercmp`.
 
-DEB: `0.1.0-6~fmx`, after the published `0.1.0-5`. Debian has no audinux, so these packages stay ours until
+DEB: `0.1.0-6~omx`, after the published `0.1.0-5` and `0.1.0-6~fmx` (the same code). A tilde sorts below
+anything, so `0.1.0-6~omx` sits above `0.1.0-6~fmx` and below a plain `0.1.0-6`. Debian has no audinux, so these packages stay ours until
 Debian or upstream carries the library.
 
 ## What plugin-hostd requires
 
 A floor, nothing more:
 
-- spec: `Requires: mod-host-protocol%{?_isa} >= 0.10.6.f14a230-11.1`. Our `11.1.fmx` meets it, and so does
-  audinux's `12`; audinux's `11` and our earlier `11.fmx` do not.
-- debian/control: `Depends: libmod-host-protocol0 (>= 0.1.0-6~fmx)`.
+- spec: `Requires: mod-host-protocol%{?_isa} >= 0.10.6.f14a230-11.1`. Our `11.1.omx` meets it (`11.1.omx`
+  sorts above `11.1`), as do our earlier `11.1.fmx` and audinux's `12`; audinux's `11` and our earlier `11.fmx` do
+  not.
+- debian/control: `Depends: libmod-host-protocol0 (>= 0.1.0-6~fmx)`. Our `0.1.0-6~omx` meets it, and so does the
+  earlier `0.1.0-6~fmx`.
 
 The RPM floor names the commit in the Version, because that is how the audinux spec writes it. If audinux moves to
 a newer upstream commit, its Version changes and the floor must be checked again (see below).
@@ -72,10 +78,10 @@ a newer upstream commit, its Version changes and the floor must be checked again
 ## When audinux merges #94
 
 1. Check the merged spec still has Release 12 (or higher) at Version `0.10.6.f14a230`, and that the audinux build
-   for fc44 is published. Confirm with `rpm.vercmp` that it sorts above `0.10.6.f14a230-11.1.fmx.fc44`.
+   for fc44 is published. Confirm with `rpm.vercmp` that it sorts above `0.10.6.f14a230-11.1.omx.fc44`.
 2. Stop building our RPMs: `actions/mod-host-rpms` installs audinux's `mod-host-protocol-devel` from the audinux
    repository instead of running `rpmbuild` on `packaging/mod-host/mod-host.spec`, and its framing test stays.
-3. Leave `mod-host-protocol-rpm.yml` unrun from then on, and delete it. The published `11.1.fmx` packages stay in
+3. Leave `mod-host-protocol-rpm.yml` unrun from then on, and delete it. The published `11.1.fmx` and `11.1.omx` packages stay in
    the channel (a published NEVRA is never taken back); audinux's `12` supersedes them.
 4. If audinux's Version is no longer `0.10.6.f14a230`, set plugin-hostd's (and omx-clap-host's) RPM floor to the
    first audinux NEVRA that carries #112 and #113.

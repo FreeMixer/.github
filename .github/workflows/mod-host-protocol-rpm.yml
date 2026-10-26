@@ -3,7 +3,7 @@ name: mod-host-protocol RPMs
 # Builds mod-host, mod-host-protocol, which carries libmod-host-protocol.so.0, and mod-host-protocol-devel from
 # packaging/mod-host for every architecture and publishes them into rpm/ of the Pages repository, where
 # omx-clap-host and plugin-hostd Require libmod-host-protocol.so.0, until audinux ships the library with the patches
-# we carry. The packages carry the spec's Version and Release with the suffix fmx after it (11.1.fmx.fc44): newer than
+# we carry. The packages carry the spec's Version and Release with the suffix omx after it (11.1.omx.fc44): newer than
 # audinux's build without the patches (11), older than its build with them (12), which then replaces ours
 # (docs/mod-host-carried-patches.md). Run by hand, once per change of packaging/mod-host: a published NEVRA is never
 # rebuilt with new bytes.
@@ -61,7 +61,7 @@ jobs:
 
       - uses: ./.github/actions/mod-host-rpms
         with:
-          suffix: fmx
+          suffix: omx
 
       - name: Stage the packages and check what they carry
         env:
@@ -81,7 +81,7 @@ jobs:
           for f in release/*.rpm; do rpm -qp --qf '%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}\n' "$f"; done
           evr=$(rpm -qp --qf '%{VERSION}-%{RELEASE}\n' release/*.rpm | sort -u)
           [ "$(printf '%s\n' "$evr" | wc -l)" = 1 ] || { echo "::error::the packages carry more than one version: $evr"; exit 1; }
-          case "$evr" in *.fmx.fc"$FEDORA") ;; *) echo "::error::$evr does not carry the fmx suffix"; exit 1 ;; esac
+          case "$evr" in *.omx.fc"$FEDORA") ;; *) echo "::error::$evr does not carry the omx suffix"; exit 1 ;; esac
           case "$evr" in *.fc"$FEDORA") ;; *) echo "::error::$evr is not built for fc$FEDORA"; exit 1 ;; esac
           rpm -qp --provides release/mod-host-protocol-[0-9]*.rpm | grep '^libmod-host-protocol\.so\.0' \
             || { echo "::error::mod-host-protocol does not provide libmod-host-protocol.so.0"; exit 1; }

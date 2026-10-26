@@ -130,21 +130,23 @@ jobs:
       # builds, installs and runs packaging/mod-host/framing-test.sh against the installed package
       - uses: ./.github/actions/mod-host-rpms
         with:
-          suffix: fmx
+          suffix: omx
 
-      # above the channel's last build and audinux's build without the patches, below audinux's build with them,
-      # and the floor plugin-hostd requires is met by this build and by audinux's, by neither of the others
+      # above the channel's earlier fmx builds (11.1.fmx is the same code, which this build upgrades) and audinux's
+      # build without the patches, below audinux's build with them, and the floor plugin-hostd requires is met by
+      # this build, by 11.1.fmx and by audinux's 12, by neither of the others
       - name: The release sorts between audinux's builds without and with the patches
         run: |
           set -euo pipefail
           evr=$(rpm -qp --qf '%{VERSION}-%{RELEASE}' mod-host-rpms/mod-host-protocol-[0-9]*.rpm)
           v=${evr%%-*}
           echo "built $evr"
-          case "$evr" in "$v-11.1.fmx.fc44") ;; *) echo "::error::$evr is not $v-11.1.fmx.fc44"; exit 1 ;; esac
+          case "$evr" in "$v-11.1.omx.fc44") ;; *) echo "::error::$evr is not $v-11.1.omx.fc44"; exit 1 ;; esac
           cmp() { rpm --eval "%{lua: print(rpm.vercmp('$1', '$2'))}"; }
           fail=0
-          for pair in "$evr $v-11.fmx.fc44 1" "$evr $v-11.fc44 1" "$evr $v-12.fc44 -1" \
-                      "$evr $v-11.1 1" "$v-12.fc44 $v-11.1 1" "$v-11.fmx.fc44 $v-11.1 -1" "$v-11.fc44 $v-11.1 -1"; do
+          for pair in "$evr $v-11.1.fmx.fc44 1" "$evr $v-11.fmx.fc44 1" "$evr $v-11.fc44 1" "$evr $v-12.fc44 -1" \
+                      "$evr $v-11.1 1" "$v-12.fc44 $v-11.1 1" "$v-11.1.fmx.fc44 $v-11.1 1" \
+                      "$v-11.fmx.fc44 $v-11.1 -1" "$v-11.fc44 $v-11.1 -1"; do
             set -- $pair
             got=$(cmp "$1" "$2")
             if [ "$got" = "$3" ]; then echo "ok      vercmp $1 $2 = $3"; else echo "::error::vercmp $1 $2 is $got, not $3"; fail=1; fi
@@ -176,5 +178,8 @@ jobs:
           ver=$(dpkg-query -W -f='${Version}' libmod-host-protocol0)
           echo "built $ver"
           dpkg --compare-versions "$ver" gt 0.1.0-5
+          dpkg --compare-versions "$ver" eq 0.1.0-6~omx
+          dpkg --compare-versions "$ver" gt 0.1.0-6~fmx
           dpkg --compare-versions "$ver" ge 0.1.0-6~fmx
+          dpkg --compare-versions "$ver" lt 0.1.0-6
           dpkg --compare-versions 0.1.0-5 lt 0.1.0-6~fmx
