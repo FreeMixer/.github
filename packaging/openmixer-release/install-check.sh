@@ -36,7 +36,9 @@ if command -v dnf >/dev/null; then
     else
         echo "$(basename "$file") is a dry run's build: not signed, not checked"
     fi
-    dnf -y --setopt=retries=10 makecache --repo openmixer --repo openmixer-noarch
+    # dnf skips a repository it cannot load unless told not to: the index must load and verify
+    dnf -y --setopt=retries=10 --setopt=skip_if_unavailable=False makecache --repo openmixer --repo openmixer-noarch ||
+        fail "the openmixer repositories do not load"
     dnf repolist | tee "$work/repolist"
     for id in openmixer openmixer-noarch; do
         grep -q "^$id " "$work/repolist" || fail "dnf repolist names no $id"

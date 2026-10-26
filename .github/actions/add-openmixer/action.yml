@@ -22,7 +22,8 @@ runs:
         if command -v dnf >/dev/null; then
           grep -qx 'retries=10' /etc/dnf/dnf.conf || echo 'retries=10' >> /etc/dnf/dnf.conf
           dnf install -y --setopt=install_weak_deps=False "$BASE_URL/rpm/openmixer-release.noarch.rpm"
-          dnf -y makecache --repo openmixer --repo openmixer-noarch
+          # a repository that does not load is skipped by default; here it fails the step
+          dnf -y --setopt=skip_if_unavailable=False makecache --repo openmixer --repo openmixer-noarch
         else
           echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80openmixer-retries
           command -v curl >/dev/null || { apt-get update -qq && apt-get install -y --no-install-recommends curl ca-certificates; }
