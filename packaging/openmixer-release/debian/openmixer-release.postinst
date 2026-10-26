@@ -1,0 +1,25 @@
+#!/bin/sh
+# The package carries an apt source per Debian release; /etc/apt/sources.list.d/openmixer.sources links the one
+# of this system's VERSION_CODENAME, so an upgrade of the package changes the source it points at. A release the
+# channel does not serve fails the install rather than add a source with no index.
+set -e
+
+if [ "$1" = configure ]; then
+    # shellcheck source=/dev/null
+    codename=$(. /etc/os-release && echo "${VERSION_CODENAME:-}")
+    src=/usr/share/openmixer-release/openmixer-$codename.sources
+    if [ -z "$codename" ] || [ ! -f "$src" ]; then
+        served=
+        for f in /usr/share/openmixer-release/openmixer-*.sources; do
+            f=${f##*/openmixer-}
+            served="$served${f%.sources} "
+        done
+        echo "openmixer-release: OpenMixer serves ${served}and this system is '${codename:-unknown}'" >&2
+        exit 1
+    fi
+    ln -sfn "$src" /etc/apt/sources.list.d/openmixer.sources
+fi
+
+#DEBHELPER#
+
+exit 0

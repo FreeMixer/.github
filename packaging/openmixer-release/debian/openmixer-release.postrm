@@ -1,0 +1,15 @@
+#!/bin/sh
+# The source link postinst made goes with the package.
+set -e
+
+case "$1" in
+remove|purge)
+    if [ -L /etc/apt/sources.list.d/openmixer.sources ]; then
+        rm -f /etc/apt/sources.list.d/openmixer.sources
+    fi
+    ;;
+esac
+
+#DEBHELPER#
+
+exit 0

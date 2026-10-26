@@ -1,0 +1,15 @@
+[openmixer]
+name=OpenMixer
+baseurl=https://www.openmixer.org/rpm/fedora/$releasever/$basearch/
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-openmixer
+
+[openmixer-noarch]
+name=OpenMixer (noarch)
+baseurl=https://www.openmixer.org/rpm/fedora/$releasever/noarch/
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-openmixer

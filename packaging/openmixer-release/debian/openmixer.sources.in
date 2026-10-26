@@ -1,0 +1,4 @@
+Types: deb
+URIs: https://www.openmixer.org/deb/debian/@SUITE@/
+Suites: ./
+Signed-By: /usr/share/keyrings/openmixer-archive-keyring.asc
