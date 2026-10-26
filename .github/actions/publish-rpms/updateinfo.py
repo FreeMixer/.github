@@ -71,7 +71,7 @@ def main(directory, out):
         kind = "newpackage" if count == 1 else "enhancement"
         ident = "FMX-" + src[: -len(".src.rpm")]
         lines = [
-            '  <update from="FreeMixer" status="stable" type="%s" version="1">' % kind,
+            '  <update from="OpenMixer" status="stable" type="%s" version="1">' % kind,
             "    <id>%s</id>" % escape(ident),
             "    <title>%s</title>" % escape("%s %s" % (srcname, version)),
             '    <issued date="%s"/>' % issued,
@@ -92,7 +92,7 @@ def main(directory, out):
             ]
         else:
             lines.append("    <references/>")
-        lines += ["    <pkglist>", '      <collection short="%s">' % escape(short), "        <name>FreeMixer</name>"]
+        lines += ["    <pkglist>", '      <collection short="%s">' % escape(short), "        <name>OpenMixer</name>"]
         for fname, h in members:
             epoch = h[rpm.RPMTAG_EPOCH]
             lines.append(

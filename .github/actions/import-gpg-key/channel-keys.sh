@@ -1,5 +1,5 @@
 #!/bin/bash
-# The public key files a channel serves (rpm/RPM-GPG-KEY-freemixer, deb/freemixer.asc).
+# The public key files a channel serves (rpm/RPM-GPG-KEY-openmixer, deb/openmixer.asc).
 #
 #   channel-keys.sh check <key file> <fingerprint>...   every fingerprint is a primary the file serves
 #   channel-keys.sh serve <key file> <key id>...        the file becomes what it served plus these keys

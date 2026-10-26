@@ -145,7 +145,7 @@ jobs:
           {
             echo "### Source package"
             echo
-            echo "- url: https://freemixer.github.io/rpm/fedora/$rel/SRPMS/$name"
+            echo "- url: https://www.openmixer.org/rpm/fedora/$rel/SRPMS/$name"
             echo "- sha256: $(sha256sum "$srpm" | cut -d' ' -f1)"
             echo "- published: $DO_PUBLISH ($dir copy)"
           } | tee -a "$GITHUB_STEP_SUMMARY"

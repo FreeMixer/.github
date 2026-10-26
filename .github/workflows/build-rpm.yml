@@ -52,8 +52,8 @@ on:
         description: 'Pages repository whose rpm/ tree receives the packages'
       base-url:
         type: string
-        default: 'https://freemixer.github.io'
-        description: 'Where the target repository is served, for the .repo file'
+        default: 'https://www.openmixer.org'
+        description: 'Where the target repository is served: openmixer-release is installed from there for the channel dependencies and the install check'
       arch-matrix:
         type: string
         default: '["x86_64", "aarch64"]'
@@ -105,7 +105,7 @@ on:
         description: 'Repository whose worker image build is told about the new packages by a repository_dispatch; empty sends nothing'
       dispatch-event:
         type: string
-        default: 'freemixer-package-published'
+        default: 'openmixer-package-published'
         description: 'event_type of that repository_dispatch; the worker image build listens for it (client_payload: package, tag, format)'
     secrets:
       DISPATCH_TOKEN:
@@ -196,21 +196,14 @@ jobs:
         if: inputs.needs-mod-host
 
       # for the build only: the repository exists in this container and is never a dependency of a release
-      - name: Take build dependencies from the FreeMixer channel
+      - uses: FreeMixer/.github/.github/actions/add-openmixer@v1
         if: inputs.channel-deps
-        env:
-          BASE_URL: ${{ inputs.base-url }}
-        run: |
-          echo 'retries=10' >> /etc/dnf/dnf.conf
-          dnf config-manager addrepo --setopt=retries=10 --from-repofile="$BASE_URL/rpm/freemixer.repo"
-          # -devel packages are noarch, in a tree of their own; a .repo published before it named that tree lacks it
-          grep -q '^\[freemixer-noarch\]' /etc/yum.repos.d/freemixer.repo ||
-            printf '%s\n' '' '[freemixer-noarch]' 'name=FreeMixer (noarch)' \
-              "baseurl=$BASE_URL/rpm/fedora/\$releasever/noarch/" \
-              'enabled=1' 'gpgcheck=1' 'repo_gpgcheck=1' \
-              "gpgkey=$BASE_URL/rpm/RPM-GPG-KEY-freemixer" >> /etc/yum.repos.d/freemixer.repo
-          dnf -y --setopt=retries=10 makecache --repo freemixer --repo freemixer-noarch
-          dnf repoquery --whatprovides 'pkgconfig(plugin-hostd)'
+        with:
+          base-url: ${{ inputs.base-url }}
+
+      - name: Show what the channel provides the build
+        if: inputs.channel-deps
+        run: dnf repoquery --repo openmixer --repo openmixer-noarch --whatprovides 'pkgconfig(plugin-hostd)'
 
       - uses: FreeMixer/.github/.github/actions/build-rpm@v1
         with:
@@ -302,7 +295,6 @@ jobs:
           publish-token: ${{ secrets.PAGES_TOKEN }}
           site-gpg-key: ${{ secrets.SITE_GPG_KEY }}
           channel: ${{ inputs.target-repo }}
-          base-url: ${{ inputs.base-url }}
 
       - uses: actions/upload-artifact@v4
         if: env.DO_PUBLISH == 'true'
@@ -378,6 +370,10 @@ jobs:
       matrix:
         arch: ${{ fromJSON(inputs.arch-matrix) }}
     steps:
+      - uses: FreeMixer/.github/.github/actions/add-openmixer@v1
+        with:
+          base-url: ${{ inputs.base-url }}
+
       - name: Install the new version from the channel
         env:
           TAG: ${{ inputs.source-ref || github.ref_name }}
@@ -387,8 +383,6 @@ jobs:
         run: |
           set -o pipefail
           ver=${TAG#v}
-          dnf install -y --setopt=install_weak_deps=False dnf5-plugins
-          dnf config-manager addrepo --setopt=retries=10 --from-repofile="$BASE_URL/rpm/freemixer.repo"
           for bin in ${BINARIES:-$NAME}; do
             ok=
             for try in $(seq 1 20); do

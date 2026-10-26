@@ -29,10 +29,12 @@ rpm)
         find "$work/rb-$1" -name '*.rpm' -exec cp {} "$work/src-$1/" \;
     }
     tree=$work/rpm
-    file=$tree/RPM-GPG-KEY-freemixer
+    file=$tree/RPM-GPG-KEY-openmixer
     mkpkg pkg-old
     "$actions/publish-rpms/publish-tree.sh" "$tree" "$work/src-pkg-old" "$OLD_ID"
     [ "$(served "$file")" = "$OLD_ID " ] || fail "the first publish serves $(served "$file"), not $OLD_ID"
+    cmp "$tree/openmixer.repo" "$here/../packaging/openmixer-release/openmixer.repo" ||
+        fail "the tree's openmixer.repo is not the file openmixer-release installs"
     if "$keys" check "$file" "$NEW_ID"; then fail "check accepted $NEW_ID, which the channel does not serve"; fi
     "$keys" serve "$file" "$NEW_ID"
     "$keys" check "$file" "$NEW_ID" "$OLD_ID"
@@ -59,7 +61,7 @@ deb)
         dpkg-deb -b "$work/$1" "$work/src-$1/trixie/${1}_1_all.deb" >/dev/null
     }
     tree=$work/deb
-    file=$tree/freemixer.asc
+    file=$tree/openmixer.asc
     mkpkg pkg-old
     "$actions/publish-debs/publish-tree.sh" "$tree" "$work/src-pkg-old" "$OLD_ID"
     [ "$(served "$file")" = "$OLD_ID " ] || fail "the first publish serves $(served "$file"), not $OLD_ID"

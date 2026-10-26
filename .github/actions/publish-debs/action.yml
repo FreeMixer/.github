@@ -42,7 +42,7 @@ inputs:
     default: ''
   changelogs-url:
     description: where the channel's deb/changelogs/ directory is served, for the Changelogs field of the Release files; empty leaves the field out
-    default: https://freemixer.github.io/deb/changelogs
+    default: https://www.openmixer.org/deb/changelogs
   signed-dir:
     description: directory receiving the published copies, laid out <suite>/*.deb
     default: signed
@@ -74,7 +74,7 @@ runs:
       with:
         gpg-key: ${{ inputs.cosign-key }}
         gpg-passphrase: ${{ inputs.cosign-passphrase }}
-        id-variable: FREEMIXER_GPG_COSIGN_KEY_ID
+        id-variable: OPENMIXER_GPG_COSIGN_KEY_ID
 
     - uses: FreeMixer/.github/.github/actions/channel-pull@v1
       if: inputs.sign == 'true'
@@ -89,8 +89,8 @@ runs:
       run: |
         set -o pipefail
         # shellcheck disable=SC2086 # the co-signer is one fingerprint or empty
-        "$GITHUB_ACTION_PATH/../import-gpg-key/channel-keys.sh" check build/channel/deb/freemixer.asc \
-          "$FREEMIXER_GPG_KEY_ID" ${FREEMIXER_GPG_COSIGN_KEY_ID:-}
+        "$GITHUB_ACTION_PATH/../import-gpg-key/channel-keys.sh" check build/channel/deb/openmixer.asc \
+          "$OPENMIXER_GPG_KEY_ID" ${OPENMIXER_GPG_COSIGN_KEY_ID:-}
 
     - name: Assemble the tree
       shell: bash
@@ -103,7 +103,7 @@ runs:
       run: |
         set -o pipefail
         if [ "$SIGN" = true ]; then
-          COSIGN=${FREEMIXER_GPG_COSIGN_KEY_ID:-} "$GITHUB_ACTION_PATH/publish-tree.sh" build/channel/deb "$DEB_DIR" "$FREEMIXER_GPG_KEY_ID"
+          COSIGN=${OPENMIXER_GPG_COSIGN_KEY_ID:-} "$GITHUB_ACTION_PATH/publish-tree.sh" build/channel/deb "$DEB_DIR" "$OPENMIXER_GPG_KEY_ID"
         else
           "$GITHUB_ACTION_PATH/publish-tree.sh" build/repo/deb "$DEB_DIR"
         fi
@@ -120,7 +120,7 @@ runs:
         test -n "$(find "$tree" -name Packages -print -quit)" || { echo "::error::no index in the tree"; exit 1; }
         if [ "$SIGN" = true ]; then
           test -n "$(find "$tree" -name InRelease -print -quit)" || { echo "::error::the index is not signed"; exit 1; }
-          test -s "$tree/freemixer.asc" || { echo "::error::no public key in the tree"; exit 1; }
+          test -s "$tree/openmixer.asc" || { echo "::error::no public key in the tree"; exit 1; }
         fi
 
     - uses: FreeMixer/.github/.github/actions/channel-push@v1
@@ -132,7 +132,7 @@ runs:
         branch: ${{ inputs.branch }}
         tag: ${{ inputs.tag }}
         what: deb
-        rebuild: 'REQUIRES="${{ inputs.requires }}" CHANGELOGS_URL="${{ inputs.changelogs-url }}" COSIGN="${FREEMIXER_GPG_COSIGN_KEY_ID:-}" "${{ github.action_path }}/publish-tree.sh" build/channel/deb "${{ inputs.deb-dir }}" "$FREEMIXER_GPG_KEY_ID"'
+        rebuild: 'REQUIRES="${{ inputs.requires }}" CHANGELOGS_URL="${{ inputs.changelogs-url }}" COSIGN="${OPENMIXER_GPG_COSIGN_KEY_ID:-}" "${{ github.action_path }}/publish-tree.sh" build/channel/deb "${{ inputs.deb-dir }}" "$OPENMIXER_GPG_KEY_ID"'
 
     # After the push: a push that lost a race rebuilds and re-signs the tree, and the copies must be the bytes
     # the channel serves, not those of the first attempt.

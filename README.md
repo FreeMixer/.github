@@ -10,6 +10,16 @@ package's `packaging/*.spec`, and the RPMs are built for x86_64 and aarch64, sig
 `rpm/` tree of the organisation's Pages repository and attached to the GitHub release. Without a tag
 the same workflow is a dry run that publishes nothing.
 
+## Adding the repository
+
+A machine adds the channel by installing `openmixer-release` (`packaging/openmixer-release`, released by
+`.github/workflows/release-package.yml` on a tag `openmixer-release-<Version>-<Release>`):
+
+    sudo dnf install https://www.openmixer.org/rpm/openmixer-release.noarch.rpm
+    curl -fsSLO https://www.openmixer.org/deb/openmixer-release.deb && sudo apt install ./openmixer-release.deb
+
+`docs/release-operations.md` says what it installs and how it is released.
+
 ## Versions
 
 Call the shared workflows and actions by the `v1` tag, never by `main`:

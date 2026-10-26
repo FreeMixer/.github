@@ -1,0 +1,14 @@
+#!/usr/bin/make -f
+
+# One apt source per Debian release the channel serves; postinst links the one of the running system.
+SUITES = bookworm trixie
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	mkdir -p debian/sources
+	for s in $(SUITES); do sed "s/@SUITE@/$$s/" debian/openmixer.sources.in > debian/sources/openmixer-$$s.sources; done
+
+override_dh_auto_clean:
+	rm -rf debian/sources
