@@ -14,7 +14,7 @@ inputs:
     description: Release of the built packages, without the dist tag; empty keeps the spec's
     default: ''
   suffix:
-    description: appended to the Release after a dot, before the dist tag (the channel passes fmx); empty keeps the spec's Release
+    description: appended to the Release after a dot, before the dist tag (the channel passes omx); empty keeps the spec's Release
     default: ''
 
 runs:
