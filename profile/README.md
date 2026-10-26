@@ -29,6 +29,8 @@ https://www.openmixer.org/docs/plugins-names/
 
 ## Install
 
-Fedora: `sudo dnf config-manager addrepo --from-repofile=https://www.openmixer.org/rpm/freemixer.repo`
+Installing `openmixer-release` adds the repository and its key; `dnf update` and `apt upgrade` keep them current.
 
-Debian and Raspberry Pi OS: see https://www.openmixer.org
+Fedora: `sudo dnf install https://www.openmixer.org/rpm/openmixer-release.noarch.rpm`
+
+Debian and Raspberry Pi OS (bookworm, trixie): `curl -fsSLO https://www.openmixer.org/deb/openmixer-release.deb && sudo apt install ./openmixer-release.deb && sudo apt update`
