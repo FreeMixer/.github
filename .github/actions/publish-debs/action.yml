@@ -68,6 +68,7 @@ runs:
       with:
         gpg-key: ${{ inputs.gpg-key }}
         gpg-passphrase: ${{ inputs.gpg-passphrase }}
+        id-variable: OPENMIXER_GPG_KEY_ID
 
     - uses: FreeMixer/.github/.github/actions/import-gpg-key@v1
       if: inputs.sign == 'true' && inputs.cosign-key != ''
