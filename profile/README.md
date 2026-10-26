@@ -4,7 +4,7 @@
 
 **openmixer** is a free, real-time digital mixing console for Linux: a live mixer
 you run on a PC, with a web UI on any tablet and hardware control surfaces.
-→ https://freemixer.github.io
+→ https://www.openmixer.org
 
 ## What you can install
 
@@ -25,10 +25,10 @@ means the piece does not ship in that form.
 | mod-host and the protocol library | the plugin host most of the above can drive; our changes are open [pull requests upstream](https://github.com/mod-audio/mod-host/pulls) | `mod-host`, `mod-host-protocol` | `libmod-host-protocol-dev` | - |
 
 Repository, package and pkg-config names of every piece:
-https://freemixer.github.io/docs/plugins-names/
+https://www.openmixer.org/docs/plugins-names/
 
 ## Install
 
-Fedora: `sudo dnf config-manager addrepo --from-repofile=https://freemixer.github.io/rpm/freemixer.repo`
+Fedora: `sudo dnf config-manager addrepo --from-repofile=https://www.openmixer.org/rpm/freemixer.repo`
 
-Debian and Raspberry Pi OS: see https://freemixer.github.io
+Debian and Raspberry Pi OS: see https://www.openmixer.org
