@@ -198,3 +198,15 @@ jobs:
           dpkg --compare-versions "$ver" ge 0.1.0-6~fmx
           dpkg --compare-versions "$ver" lt 0.1.0-6
           dpkg --compare-versions 0.1.0-5 lt 0.1.0-6~fmx
+
+  # The two checks every repository runs from here: dependency floors from one packaging/deps.txt, and no
+  # tracked file pointing into a private repository. Each action proves its engine red on every planted drift
+  # before it reads the tree it is given (this one, which declares neither and so is the clean control).
+  repo-checks:
+    name: deps-render and private-refs-check engines, sabotaged
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - run: .github/actions/deps-render/render.sh --self-test
+      - uses: ./.github/actions/private-refs-check
