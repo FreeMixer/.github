@@ -6,10 +6,13 @@ description: Sign RPMs and publish them into the rpm/ tree of a FreeMixer Pages 
 # unsigned tree in build/repo and pushes nothing.
 #
 # KEY HONESTY: before signing, the imported key's fingerprint must be one of the keys the channel already
-# serves dnf (rpm/RPM-GPG-KEY-freemixer in the pulled tree, else public-key-url); otherwise the run refuses
+# serves dnf (rpm/RPM-GPG-KEY-openmixer in the pulled tree, else public-key-url); otherwise the run refuses
 # rather than sign with a key that gpgcheck=1 clients cannot verify. The first publish into an empty channel
 # has nothing to compare with, says so, and sets the key. The served file only grows (channel-keys.sh): a
 # new signing key is published next to the old one, by hand, BEFORE the first run that signs with it.
+#
+# Machines add the repository by installing openmixer-release (packaging/openmixer-release, workflow
+# release-package); the tree's rpm/openmixer.repo is the file that package installs, written by publish-tree.sh.
 
 inputs:
   rpm-dir:
@@ -38,9 +41,6 @@ inputs:
   public-key-url:
     description: where dnf fetches the public key from, when the channel tree does not hold it yet; empty skips that comparison
     default: ''
-  base-url:
-    description: where the channel is served, for the .repo file
-    default: https://freemixer.github.io
   signed-dir:
     description: directory receiving the signed copies of the published packages
     default: signed
@@ -81,12 +81,12 @@ runs:
         PUBLIC_KEY_URL: ${{ inputs.public-key-url }}
       run: |
         set -o pipefail
-        keys=build/channel/rpm/RPM-GPG-KEY-freemixer
+        keys=build/channel/rpm/RPM-GPG-KEY-openmixer
         if [ ! -s "$keys" ] && [ -n "$PUBLIC_KEY_URL" ]; then
           keys=$(mktemp)
           curl -fsSL --retry 5 --retry-all-errors --retry-delay 3 --connect-timeout 20 "$PUBLIC_KEY_URL" > "$keys"
         fi
-        "$GITHUB_ACTION_PATH/../import-gpg-key/channel-keys.sh" check "$keys" "$FREEMIXER_GPG_KEY_ID"
+        "$GITHUB_ACTION_PATH/../import-gpg-key/channel-keys.sh" check "$keys" "$OPENMIXER_GPG_KEY_ID"
 
     - name: Assemble the tree
       shell: bash
@@ -96,7 +96,7 @@ runs:
       run: |
         set -o pipefail
         if [ "$SIGN" = true ]; then
-          "$GITHUB_ACTION_PATH/publish-tree.sh" build/channel/rpm "$RPM_DIR" "$FREEMIXER_GPG_KEY_ID"
+          "$GITHUB_ACTION_PATH/publish-tree.sh" build/channel/rpm "$RPM_DIR" "$OPENMIXER_GPG_KEY_ID"
         else
           "$GITHUB_ACTION_PATH/publish-tree.sh" build/repo/rpm "$RPM_DIR"
         fi
@@ -115,23 +115,6 @@ runs:
           test -n "$(find "$tree" -name repomd.xml.asc -print -quit)" || { echo "::error::repodata is not signed"; exit 1; }
         fi
 
-    - name: Write the dnf repo file
-      if: inputs.sign == 'true'
-      shell: bash
-      env:
-        BASE_URL: ${{ inputs.base-url }}
-      run: |
-        set -euo pipefail
-        printf '%s\n' '[freemixer]' 'name=FreeMixer' \
-          "baseurl=$BASE_URL/rpm/fedora/\$releasever/\$basearch/" \
-          'enabled=1' 'gpgcheck=1' 'repo_gpgcheck=1' \
-          "gpgkey=$BASE_URL/rpm/RPM-GPG-KEY-freemixer" '' \
-          '[freemixer-noarch]' 'name=FreeMixer (noarch)' \
-          "baseurl=$BASE_URL/rpm/fedora/\$releasever/noarch/" \
-          'enabled=1' 'gpgcheck=1' 'repo_gpgcheck=1' \
-          "gpgkey=$BASE_URL/rpm/RPM-GPG-KEY-freemixer" > build/channel/rpm/freemixer.repo
-        cat build/channel/rpm/freemixer.repo
-
     - uses: FreeMixer/.github/.github/actions/channel-push@v1
       if: inputs.sign == 'true'
       with:
@@ -141,7 +124,7 @@ runs:
         branch: ${{ inputs.branch }}
         tag: ${{ inputs.tag }}
         what: rpm
-        rebuild: '"${{ github.action_path }}/publish-tree.sh" build/channel/rpm "${{ inputs.rpm-dir }}" "$FREEMIXER_GPG_KEY_ID"'
+        rebuild: '"${{ github.action_path }}/publish-tree.sh" build/channel/rpm "${{ inputs.rpm-dir }}" "$OPENMIXER_GPG_KEY_ID"'
 
     # After the push: a push that lost a race rebuilds and re-signs the tree, and the copies must be the bytes
     # the channel serves, not those of the first attempt.

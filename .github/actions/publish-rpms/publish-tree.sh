@@ -75,7 +75,10 @@ for dest in "${!dirs[@]}"; do
     echo "repodata ${dest#"$tree"/}"
 done
 
-# the key file is what the channel served plus the signing key, never the signing key alone (channel-keys.sh)
+# the key file is what the channel served plus the signing key, never the signing key alone (channel-keys.sh);
+# openmixer.repo is the file openmixer-release installs, the same bytes
 if [ -n "$key" ]; then
-    "$(dirname "$(readlink -f "$0")")/../import-gpg-key/channel-keys.sh" serve "$tree/RPM-GPG-KEY-freemixer" "$key"
+    here=$(dirname "$(readlink -f "$0")")
+    "$here/../import-gpg-key/channel-keys.sh" serve "$tree/RPM-GPG-KEY-openmixer" "$key"
+    install -m 0644 "$here/../../../packaging/openmixer-release/openmixer.repo" "$tree/openmixer.repo"
 fi

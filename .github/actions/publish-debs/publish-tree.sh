@@ -94,7 +94,7 @@ for suitedir in "$tree"/debian/*/; do
         gzip -9nk Packages
         release=$(mktemp)
         apt-ftparchive \
-            -o APT::FTPArchive::Release::Origin=FreeMixer -o APT::FTPArchive::Release::Label=FreeMixer \
+            -o APT::FTPArchive::Release::Origin=OpenMixer -o APT::FTPArchive::Release::Label=OpenMixer \
             -o APT::FTPArchive::Release::Suite="$suite" -o APT::FTPArchive::Release::Codename="$suite" \
             -o APT::FTPArchive::Release::Architectures="${archs% }" \
             release . > "$release"
@@ -115,5 +115,5 @@ done
 # the key file is what the channel served plus every key that signed the index (channel-keys.sh)
 if [ -n "$key" ]; then
     # shellcheck disable=SC2086 # cosign is one key id or empty
-    "$(dirname "$(readlink -f "$0")")/../import-gpg-key/channel-keys.sh" serve "$tree/freemixer.asc" "$key" $cosign
+    "$(dirname "$(readlink -f "$0")")/../import-gpg-key/channel-keys.sh" serve "$tree/openmixer.asc" "$key" $cosign
 fi

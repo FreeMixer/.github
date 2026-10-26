@@ -1,7 +1,7 @@
 name: import-gpg-key
 description: Import a release signing key so gpg, rpmsign and apt-ftparchive signing run without a prompt
 
-# Sets the variable named by id-variable (FREEMIXER_GPG_KEY_ID) to the primary fingerprint of the imported
+# Sets the variable named by id-variable (OPENMIXER_GPG_KEY_ID) to the primary fingerprint of the imported
 # key. That key signs the RPMs, the dnf metadata and the apt index; publish-debs imports a co-signer for the
 # apt index under another variable. A subkey-only export (the primary a stub) signs with its subkey.
 # Needs gnupg2 (and pinentry, rpm-sign as the caller's tools need them).
@@ -18,7 +18,7 @@ inputs:
     default: ''
   id-variable:
     description: the environment variable that receives the key's fingerprint
-    default: FREEMIXER_GPG_KEY_ID
+    default: OPENMIXER_GPG_KEY_ID
 
 runs:
   using: composite
