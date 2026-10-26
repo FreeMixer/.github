@@ -1,0 +1,339 @@
+name: openmixer-release
+
+# Builds openmixer-release, the package that adds the OpenMixer repository (packaging/openmixer-release), as an
+# RPM and a DEB, each carrying the key file the channel serves at build time, and publishes them into the channel:
+# as packages of the repository, so `dnf update` and `apt upgrade` carry a new release, and at the stable names
+# rpm/openmixer-release.noarch.rpm and deb/openmixer-release.deb, which a new machine installs and each release
+# replaces.
+#
+# A tag openmixer-release-<Version>-<Release>, the spec's (and debian/changelog's), is a release: it signs and
+# publishes. Anything else is a dry run: the packages are built and install-checked against the channel, an
+# unsigned tree is assembled as an artifact, nothing is signed or published. The packages and the key are read
+# from the channel as it is served, so a dry run proves what a release would ship.
+#
+# Secrets (organisation secrets): OPENMIXER_PACKAGES_SIGNING_KEY, PAGES_TOKEN, SITE_GPG_KEY, as build-rpm.yml.
+
+on:
+  push:
+    tags: ['openmixer-release-*']
+  pull_request:
+    paths:
+      - 'packaging/openmixer-release/**'
+      - '.github/workflows/release-package.yml'
+      - '.github/actions/add-openmixer/**'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+env:
+  BASE_URL: https://www.openmixer.org
+  CHANNEL: FreeMixer/freemixer.github.io
+  # a package of each tree the repository adds, installed through it by the install check
+  RPM_PROBE: plugin-hostd-devel
+  DEB_PROBE: clap-headers
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  preflight:
+    name: Check the release can publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      publish: ${{ steps.release.outputs.publish }}
+      evr: ${{ steps.release.outputs.evr }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read the release the packaging carries
+        id: release
+        run: |
+          set -euo pipefail
+          spec=packaging/openmixer-release/openmixer-release.spec
+          evr=$(sed -n 's/^Version: *//p' "$spec")-$(sed -n 's/^Release: *\([0-9][0-9.]*\)%{?dist}$/\1/p' "$spec")
+          echo "evr=$evr" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            [ "$GITHUB_REF_NAME" = "openmixer-release-$evr" ] ||
+              { echo "::error::tag $GITHUB_REF_NAME is not openmixer-release-$evr, the release of the packaging"; exit 1; }
+            echo publish=true >> "$GITHUB_OUTPUT"
+          else
+            echo publish=false >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: ./.github/actions/release-preflight
+        with:
+          publish: ${{ steps.release.outputs.publish }}
+          require-tag: 'false'
+          target: ${{ env.CHANNEL }}
+          gpg-key: ${{ secrets.OPENMIXER_PACKAGES_SIGNING_KEY }}
+          pages-token: ${{ secrets.PAGES_TOKEN }}
+
+  rpm:
+    name: Build the RPM (fc44) and install it
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container:
+      image: fedora:44
+    steps:
+      - run: dnf install -y --setopt=install_weak_deps=False rpm-build gnupg2 curl findutils
+
+      - uses: actions/checkout@v4
+
+      - name: Take the key file the channel serves dnf
+        run: |
+          set -euo pipefail
+          mkdir -p keys
+          curl -fsSL --retry 5 --retry-all-errors --retry-delay 3 --connect-timeout 20 -o keys/RPM-GPG-KEY-openmixer \
+            "$BASE_URL/rpm/RPM-GPG-KEY-openmixer" ||
+            { echo "::error::the channel serves no rpm/RPM-GPG-KEY-openmixer at $BASE_URL"; exit 1; }
+
+      - run: packaging/openmixer-release/build.sh rpm keys/RPM-GPG-KEY-openmixer rpms
+
+      - name: Install it in this clean fedora and install a package of the channel through it
+        run: SIGNED=0 packaging/openmixer-release/install-check.sh rpms/openmixer-release-*.noarch.rpm "$RPM_PROBE"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openmixer-release-rpm
+          path: rpms/*.rpm
+          if-no-files-found: error
+          retention-days: 30
+
+  deb:
+    name: Build the DEB
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container:
+      image: debian:bookworm
+    steps:
+      - run: apt-get update -qq && apt-get install -y --no-install-recommends build-essential dpkg-dev debhelper lintian gnupg curl ca-certificates
+
+      - uses: actions/checkout@v4
+
+      - name: Take the key file the channel serves apt
+        run: |
+          set -euo pipefail
+          mkdir -p keys
+          curl -fsSL --retry 5 --retry-all-errors --retry-delay 3 --connect-timeout 20 -o keys/openmixer.asc \
+            "$BASE_URL/deb/openmixer.asc" ||
+            { echo "::error::the channel serves no deb/openmixer.asc at $BASE_URL"; exit 1; }
+
+      - run: packaging/openmixer-release/build.sh deb keys/openmixer.asc debs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openmixer-release-deb
+          path: debs/*.deb
+          if-no-files-found: error
+          retention-days: 30
+
+  deb-install:
+    name: Install the DEB (${{ matrix.suite }})
+    needs: deb
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: debian:${{ matrix.suite }}
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [bookworm, trixie]
+    steps:
+      - run: apt-get update -qq && apt-get install -y --no-install-recommends gnupg curl ca-certificates
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: openmixer-release-deb
+          path: debs
+
+      - name: Install it in this clean debian and install a package of the channel through it
+        run: |
+          chmod 755 debs && chmod 644 debs/*.deb
+          packaging/openmixer-release/install-check.sh debs/openmixer-release_*_all.deb "$DEB_PROBE"
+
+  publish-rpm:
+    name: Sign and publish the RPM
+    needs: [preflight, rpm, deb, deb-install]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container:
+      image: fedora:44
+    concurrency:
+      group: publish-FreeMixer/freemixer.github.io-${{ needs.preflight.outputs.publish == 'true' && 'live' || github.run_id }}
+      cancel-in-progress: false
+    env:
+      DO_PUBLISH: ${{ needs.preflight.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: openmixer-release-rpm
+          path: collected
+
+      - uses: ./.github/actions/publish-rpms
+        with:
+          rpm-dir: collected
+          tag: openmixer-release-${{ needs.preflight.outputs.evr }}
+          sign: ${{ env.DO_PUBLISH }}
+          gpg-key: ${{ secrets.OPENMIXER_PACKAGES_SIGNING_KEY }}
+          publish-token: ${{ secrets.PAGES_TOKEN }}
+          site-gpg-key: ${{ secrets.SITE_GPG_KEY }}
+          channel: ${{ env.CHANNEL }}
+
+      # the stable name is the signed copy the repository serves, replaced at each release
+      - name: Place the stable name
+        run: |
+          set -euo pipefail
+          if [ "$DO_PUBLISH" = true ]; then src=signed tree=build/channel/rpm; else src=collected tree=build/repo/rpm; fi
+          install -m 0644 "$src"/openmixer-release-*.noarch.rpm "$tree/openmixer-release.noarch.rpm"
+          rpm -qp --qf '%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH} %{SIGPGP:pgpsig}\n' "$tree/openmixer-release.noarch.rpm"
+
+      - uses: ./.github/actions/channel-push
+        if: env.DO_PUBLISH == 'true'
+        with:
+          publish-token: ${{ secrets.PAGES_TOKEN }}
+          site-gpg-key: ${{ secrets.SITE_GPG_KEY }}
+          channel: ${{ env.CHANNEL }}
+          tag: openmixer-release-${{ needs.preflight.outputs.evr }}
+          what: rpm
+          rebuild: 'install -m 0644 signed/openmixer-release-*.noarch.rpm build/channel/rpm/openmixer-release.noarch.rpm'
+
+      - uses: actions/upload-artifact@v4
+        if: env.DO_PUBLISH != 'true'
+        with:
+          name: openmixer-release-unsigned-rpm-tree
+          path: build/repo/**
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-deb:
+    name: Sign and publish the DEB
+    needs: [preflight, rpm, deb, deb-install]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container:
+      image: debian:trixie
+    concurrency:
+      group: publish-FreeMixer/freemixer.github.io-${{ needs.preflight.outputs.publish == 'true' && 'live' || github.run_id }}
+      cancel-in-progress: false
+    env:
+      DO_PUBLISH: ${{ needs.preflight.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: openmixer-release-deb
+          path: built
+
+      # one Architecture: all package, the same file in the tree of every Debian release the source names
+      - name: Lay the package out by Debian release
+        run: |
+          set -euo pipefail
+          for suite in bookworm trixie; do
+            mkdir -p "collected/$suite"
+            cp built/openmixer-release_*_all.deb "collected/$suite/"
+          done
+          find collected -name '*.deb' | sort
+
+      - uses: ./.github/actions/publish-debs
+        with:
+          deb-dir: collected
+          tag: openmixer-release-${{ needs.preflight.outputs.evr }}
+          sign: ${{ env.DO_PUBLISH }}
+          gpg-key: ${{ secrets.OPENMIXER_PACKAGES_SIGNING_KEY }}
+          publish-token: ${{ secrets.PAGES_TOKEN }}
+          site-gpg-key: ${{ secrets.SITE_GPG_KEY }}
+          channel: ${{ env.CHANNEL }}
+
+      - name: Place the stable name
+        run: |
+          set -euo pipefail
+          if [ "$DO_PUBLISH" = true ]; then tree=build/channel/deb; else tree=build/repo/deb; fi
+          install -m 0644 built/openmixer-release_*_all.deb "$tree/openmixer-release.deb"
+          dpkg-deb -f "$tree/openmixer-release.deb" Package Version Architecture
+
+      - uses: ./.github/actions/channel-push
+        if: env.DO_PUBLISH == 'true'
+        with:
+          publish-token: ${{ secrets.PAGES_TOKEN }}
+          site-gpg-key: ${{ secrets.SITE_GPG_KEY }}
+          channel: ${{ env.CHANNEL }}
+          tag: openmixer-release-${{ needs.preflight.outputs.evr }}
+          what: deb
+          rebuild: 'install -m 0644 built/openmixer-release_*_all.deb build/channel/deb/openmixer-release.deb'
+
+      - uses: actions/upload-artifact@v4
+        if: env.DO_PUBLISH != 'true'
+        with:
+          name: openmixer-release-unsigned-apt-tree
+          path: build/repo/**
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Report a dry run honestly
+        if: env.DO_PUBLISH != 'true'
+        run: |
+          echo "::warning::dry run: nothing was signed or published. The unsigned trees are attached to this run."
+
+  # The last proof: a machine that holds nothing installs the stable name the channel now serves, and gets the
+  # release the tag names, the repository it adds, and a package of the channel through it. Pages serves the
+  # push a little late, so the check waits for the stable name to carry the release before it calls it broken.
+  verify:
+    name: Install check from the channel (${{ matrix.image }})
+    needs: [preflight, publish-rpm, publish-deb]
+    if: needs.preflight.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['fedora:44', 'debian:bookworm', 'debian:trixie']
+    env:
+      EVR: ${{ needs.preflight.outputs.evr }}
+    steps:
+      - name: Install the tools
+        run: |
+          if command -v dnf >/dev/null; then dnf install -y --setopt=install_weak_deps=False curl gnupg2
+          else apt-get update -qq && apt-get install -y --no-install-recommends gnupg curl ca-certificates; fi
+
+      - uses: actions/checkout@v4
+
+      - name: Wait for the stable name to carry the release
+        run: |
+          set -uo pipefail
+          if command -v dnf >/dev/null; then url=$BASE_URL/rpm/openmixer-release.noarch.rpm; else url=$BASE_URL/deb/openmixer-release.deb; fi
+          for try in $(seq 1 20); do
+            rm -f stable
+            if curl -fsSL --connect-timeout 20 -o stable "$url"; then
+              if command -v dnf >/dev/null; then got=$(rpm -qp --qf '%{VERSION}-%{RELEASE}' stable | sed 's/\.fc[0-9]*$//')
+              else got=$(dpkg-deb -f stable Version); fi
+              [ "$got" = "$EVR" ] && { echo "$url carries $EVR"; exit 0; }
+              echo "attempt $try: $url carries $got, not $EVR yet"
+            fi
+            sleep 30
+          done
+          echo "::error::$url does not carry openmixer-release $EVR"; exit 1
+
+      - name: Install it and a package of the channel through it
+        run: |
+          set -euo pipefail
+          if command -v dnf >/dev/null; then
+            packaging/openmixer-release/install-check.sh "$BASE_URL/rpm/openmixer-release.noarch.rpm" "$RPM_PROBE"
+            dnf repoquery --repo openmixer-noarch --qf '%{name}-%{version}-%{release}\n' openmixer-release | tee served
+            grep -q "^openmixer-release-$EVR\." served || { echo "::error::openmixer-noarch does not serve openmixer-release $EVR"; exit 1; }
+          else
+            packaging/openmixer-release/install-check.sh "$BASE_URL/deb/openmixer-release.deb" "$DEB_PROBE"
+            apt-cache madison openmixer-release | tee served
+            grep -q "| $EVR |" served || { echo "::error::the openmixer source does not serve openmixer-release $EVR"; exit 1; }
+          fi
