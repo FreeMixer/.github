@@ -6,25 +6,29 @@
 you run on a PC, with a web UI on any tablet and hardware control surfaces.
 → https://freemixer.github.io
 
-## The pieces you can use on their own
+## What you can install
 
-- [plugin-hostd](https://github.com/FreeMixer/plugin-hostd) runs LV2 and CLAP plugins
-  in separate worker processes behind one mod-host socket. If a plugin crashes,
-  only its worker restarts and the others keep playing.
-- [omx-clap-core](https://github.com/FreeMixer/omx-clap-core) is a headless CLAP host
-  that speaks mod-host's protocol, one JACK client per plugin.
-- [omx-panel](https://github.com/FreeMixer/omx-panel) gives any LV2 or CLAP plugin a panel without
-  drawing one: a MOD GUI for MOD and Zynthian, controller pages and a host layout, all generated from
-  what the plugin itself declares, in the omx look.
-  Install: `dnf install omx-panel`, `apt install omx-panel` or `npm install @openmixer/omx-panel`.
-- **mod-host** with the protocol library: our changes are open pull requests upstream
-  ([mod-audio/mod-host](https://github.com/mod-audio/mod-host/pulls)).
+Each row is a piece you can use without the rest. Add the repository ([Install](#install)) and install by name; a dash
+means the piece does not ship in that form.
+
+| Piece | What it gives you | Fedora | Debian / Raspberry Pi OS | npm |
+|---|---|---|---|---|
+| [plugin-hostd](https://github.com/FreeMixer/plugin-hostd) | CLAP and LV2 plugins, each format in a native host, in worker processes behind one mod-host socket; a crash restarts only that worker | `plugin-hostd` | `plugin-hostd` | - |
+| [omx-clap-core](https://github.com/FreeMixer/omx-clap-core) | `omx-clap-host`, a headless CLAP and LV2 host that speaks mod-host's protocol, one JACK client per plugin; the CLAP hosting library; the LV2 adapter library | `omx-clap-host`, `omx-clap-core`, `omx-clap-core-devel`, `omx-clap-lv2-devel` | `omx-clap-host`, `libomx-clap-core-dev`, `libomx-clap-lv2-dev` | - |
+| [omx-panel](https://github.com/FreeMixer/omx-panel) | a panel for any LV2 or CLAP plugin without drawing one: MOD GUI, controller pages, host layout | `omx-panel` | `omx-panel` | `@openmixer/omx-panel` |
+| [omx-plugins](https://github.com/FreeMixer/omx-plugins) | our own effects as CLAP and LV2 plugins | `omx-plugins`, `omx-plugins-clap`, `omx-plugins-lv2` | `omx-plugins` | - |
+| [omx-dsp](https://github.com/FreeMixer/omx-dsp) | the DSP kernels the plugins and the console share, a C library | `omx-dsp-devel` | `libomxdsp-dev` | - |
+| [omx-contract](https://github.com/FreeMixer/omx-contract) | the declarations every piece agrees on: parameters, units, limits, codes | `omx-contract-devel` | `libomx-contract-dev` | `@openmixer/omx-contract` |
+| [plugin-qualify](https://github.com/FreeMixer/plugin-qualify) | checks a plugin for real-time safety and cost before a stage runs it | `plugin-qualify` | `plugin-qualify` | - |
+| [libreac](https://github.com/FreeREAC/libreac) and [reac-pw](https://github.com/FreeREAC/reac-pw) | the REAC protocol and its PipeWire bridge, for Roland stageboxes | `libreac`, `reac-pw` | `libreac-dev`, `reac-pw` | - |
+| [libdiginet](https://github.com/FreeMixer/libdiginet) | the Digigram network audio protocol library and its tools | `libdiginet`, `diginet-tools` | `libdiginet-dev`, `diginet-tools` | - |
+| mod-host and the protocol library | the plugin host most of the above can drive; our changes are open [pull requests upstream](https://github.com/mod-audio/mod-host/pulls) | `mod-host`, `mod-host-protocol` | `libmod-host-protocol-dev` | - |
+
+Repository, package and pkg-config names of every piece:
+https://freemixer.github.io/docs/plugins-names/
 
 ## Install
 
 Fedora: `sudo dnf config-manager addrepo --from-repofile=https://freemixer.github.io/rpm/freemixer.repo`
 
 Debian and Raspberry Pi OS: see https://freemixer.github.io
-
-Repository, package and pkg-config names of every piece:
-https://freemixer.github.io/docs/plugins-names/
