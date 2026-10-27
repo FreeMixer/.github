@@ -1,12 +1,17 @@
 #!/bin/sh
 # The package carries an apt source per Debian release; /etc/apt/sources.list.d/openmixer.sources links the one
-# of this system's VERSION_CODENAME, so an upgrade of the package changes the source it points at. A release the
-# channel does not serve fails the install rather than add a source with no index.
+# of this system's VERSION_CODENAME, so an upgrade of the package changes the source it points at. Ubuntu takes the
+# trixie source (the channel serves no Ubuntu tree; its packages are Architecture: all or build on trixie's
+# libraries, as the Ubuntu CI jobs used before this package). A release the channel does not serve fails the
+# install rather than add a source with no index.
 set -e
 
 if [ "$1" = configure ]; then
     # shellcheck source=/dev/null
     codename=$(. /etc/os-release && echo "${VERSION_CODENAME:-}")
+    if [ "$(. /etc/os-release && echo "${ID:-}")" = ubuntu ]; then
+        codename=trixie
+    fi
     src=/usr/share/openmixer-release/openmixer-$codename.sources
     if [ -z "$codename" ] || [ ! -f "$src" ]; then
         served=
