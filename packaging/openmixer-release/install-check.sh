@@ -60,6 +60,8 @@ else
     apt-cache policy "$probe" | tee "$work/policy"
     # shellcheck source=/dev/null
     codename=$(. /etc/os-release && echo "$VERSION_CODENAME")
+    # shellcheck source=/dev/null
+    [ "$(. /etc/os-release && echo "$ID")" != ubuntu ] || codename=trixie # Ubuntu takes the trixie source
     grep -q "^ \*\*\* .*" "$work/policy" || fail "$probe is not installed"
     awk '/\*\*\*/ {s = 1; next} s && /^ +[0-9]+ / {print; exit}' "$work/policy" | grep -q "openmixer.org/deb/debian/$codename" ||
         fail "the installed $probe does not come from the openmixer source of $codename"
