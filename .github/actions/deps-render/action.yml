@@ -1,0 +1,14 @@
+name: deps-render
+description: Hold a repository's dependency floors to its one packaging/deps.txt
+
+# packaging/deps.txt is the only place a floor is written by hand; the RPM spec, debian/control and the
+# workflows' release-tag variables are rendered from it (render.sh --write) and refused when they differ
+# (render.sh --check, which this action runs). The caller has checked the repository out.
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        "$GITHUB_ACTION_PATH/render.sh" --self-test
+        "$GITHUB_ACTION_PATH/render.sh" --check "$GITHUB_WORKSPACE"
