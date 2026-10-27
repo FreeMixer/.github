@@ -4,12 +4,16 @@ description: Add the OpenMixer repository to a Fedora or Debian container by ins
 # What a machine does to use the channel, and nothing else: install the openmixer-release package the channel
 # serves at its stable name (rpm/openmixer-release.noarch.rpm, deb/openmixer-release.deb) and refresh the
 # repository it adds (dnf: openmixer and openmixer-noarch; apt: /etc/apt/sources.list.d/openmixer.sources).
+# With suite set on Debian, the key and the source of that release are installed without the package (for an Ubuntu).
 # Installs curl on Debian when the container lacks it; dnf installs the package from its URL. Runs as root.
 
 inputs:
   base-url:
     description: where the channel is served
     default: https://www.openmixer.org
+  suite:
+    description: Debian release whose index a system the channel does not serve (an Ubuntu) takes; empty installs the release package as it is
+    default: ''
 
 runs:
   using: composite
@@ -17,6 +21,7 @@ runs:
     - shell: bash
       env:
         BASE_URL: ${{ inputs.base-url }}
+        SUITE: ${{ inputs.suite }}
       run: |
         set -euo pipefail
         if command -v dnf >/dev/null; then
@@ -31,6 +36,13 @@ runs:
           chmod 755 "$dir" # apt reads a local package as _apt
           deb=$dir/openmixer-release.deb
           curl -fsSL --retry 5 --retry-all-errors --retry-delay 3 --connect-timeout 20 -o "$deb" "$BASE_URL/deb/openmixer-release.deb"
-          apt-get install -y --no-install-recommends "$deb"
+          if [ -n "$SUITE" ]; then
+            # a system the channel does not serve: the package refuses it, so take its key and the source of $SUITE
+            dpkg-deb -x "$deb" "$dir/pkg"
+            install -D -m 644 "$dir/pkg/usr/share/keyrings/openmixer-archive-keyring.asc" /usr/share/keyrings/openmixer-archive-keyring.asc
+            install -D -m 644 "$dir/pkg/usr/share/openmixer-release/openmixer-$SUITE.sources" /etc/apt/sources.list.d/openmixer.sources
+          else
+            apt-get install -y --no-install-recommends "$deb"
+          fi
           apt-get update -qq
         fi
