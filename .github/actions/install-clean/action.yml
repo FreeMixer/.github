@@ -35,7 +35,17 @@ runs:
           [ -e "${matched[0]}" ] || { echo "::error::no file matches $glob"; exit 1; }
           files+=("${matched[@]}")
         done <<< "$RPMS"
-        dnf install -y --installroot="$ROOT" --use-host-config --releasever="$(rpm -E %fedora)" \
-          --setopt=install_weak_deps=False "${files[@]}" $PACKAGES
+        # A mirror that fails in mid-transfer (curl 56, zchunk checksums) is tried again, three attempts with a pause.
+        # dnf's exit status is the only thing that decides: nothing is hidden, each attempt prints, and the third
+        # failure fails the step with dnf's own output as the last thing on the log.
+        for attempt in 1 2 3; do
+          if dnf install -y --installroot="$ROOT" --use-host-config --releasever="$(rpm -E %fedora)" \
+              --setopt=install_weak_deps=False --setopt=retries=5 "${files[@]}" $PACKAGES; then
+            break
+          fi
+          [ "$attempt" -lt 3 ] || exit 1
+          echo "::warning::dnf install failed, attempt $attempt of 3"
+          sleep "${INSTALL_RETRY_SLEEP:-15}"
+        done
         mount -t proc proc "$ROOT/proc"
         mount --rbind /dev "$ROOT/dev"
