@@ -1,2 +1,3 @@
 # Tracked files exempt from private-refs-check, each with the reason; nothing else is.
 .github/actions/private-refs-check/check.sh   # it spells the patterns it looks for and plants each in its self-test
+.github/actions/ai-trace-check/ai-trace-commit-check.sh   # its self-test plants the shapes of attribution lines it must refuse
