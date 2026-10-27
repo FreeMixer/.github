@@ -1,0 +1,14 @@
+name: private-refs-check
+description: Fail when a tracked file of a public repository points into a private repository
+
+# One engine for every FreeMixer repository. The repository lists the files it exempts, each with its reason,
+# in tools/private-refs-allow.txt. The caller has checked the repository out. The action first proves the
+# engine goes red on each kind of pointer, then reads the tree.
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        "$GITHUB_ACTION_PATH/check.sh" --self-test
+        "$GITHUB_ACTION_PATH/check.sh" "$GITHUB_WORKSPACE"
