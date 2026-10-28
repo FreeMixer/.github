@@ -1,0 +1,28 @@
+name: commit-message-check
+description: Fail when a commit of the pull request carries an attribution line
+
+# A commit message is published like a file. The commits between the base branch and the checked-out head are read
+# (what is already on the base is not); the checker is run against its own fixtures first and must go blind when its
+# patterns are removed. The patterns are commit-message-patterns.json beside the script, generated from the ops list by
+# tools/sync-commit-message-check.sh; tests/commit-message-check.sh keeps the copy honest.
+# The caller checks out with fetch-depth: 0 and the pull request head.
+
+inputs:
+  base-ref:
+    description: the branch the pull request targets
+    default: ${{ github.base_ref }}
+
+runs:
+  using: composite
+  steps:
+    - name: The checker catches a fixture and goes blind when its patterns are removed
+      shell: bash
+      run: ${{ github.action_path }}/commit-message-check.sh --selftest
+    - name: Scan the commits of the pull request
+      shell: bash
+      env:
+        BASE_REF: ${{ inputs.base-ref }}
+      run: |
+        set -euo pipefail
+        [ -n "$BASE_REF" ] || { echo 'commit-message-check: no base-ref (run on a pull_request)' >&2; exit 2; }
+        "${{ github.action_path }}/commit-message-check.sh" "origin/$BASE_REF..HEAD"
