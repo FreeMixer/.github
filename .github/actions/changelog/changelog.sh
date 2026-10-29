@@ -33,7 +33,29 @@ git rev-parse --verify -q "$ref^{commit}" >/dev/null || die "$ref is not a commi
 subjects() {
     local prev
     prev=$(git describe --tags --abbrev=0 "$ref^" 2>/dev/null || true)
-    git log --no-merges --format='%s' "${prev:+$prev..}$ref"
+    git log --no-merges --format='%s' "${prev:+$prev..}$ref" | drop_by_patterns
+}
+
+# Defence in depth: a generated line the message patterns name never reaches the notes or a changelog. The patterns
+# are read as data from ../commit-message-check/commit-message-patterns.json (COMMIT_MESSAGE_PATTERNS names another).
+# An unreadable list stops the release: a filter that cannot judge is never a pass.
+patterns=${COMMIT_MESSAGE_PATTERNS:-$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../commit-message-check/commit-message-patterns.json}
+drop_by_patterns() {
+    python3 -I -c '
+import json, re, sys
+try:
+    with open(sys.argv[1], encoding="utf-8") as f:
+        rx = [re.compile(m["pattern"], re.I | re.M) for m in json.load(f)["markers"]]
+except Exception as e:
+    sys.exit("changelog: cannot read the message patterns %s: %s" % (sys.argv[1], e))
+dropped = 0
+for line in sys.stdin.read().splitlines():
+    if any(r.search(line) for r in rx):
+        dropped += 1
+    else:
+        print(line)
+print("release notes: %d lines dropped by the message patterns" % dropped, file=sys.stderr)
+' "$patterns"
 }
 
 case $cmd in
