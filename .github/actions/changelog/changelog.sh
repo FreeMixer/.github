@@ -13,6 +13,7 @@ set -euo pipefail
 
 author=${CHANGELOG_AUTHOR:-Pau Aliagas <linuxnow@gmail.com>}
 die() { echo "changelog: $*" >&2; exit 1; }
+command -v python3 >/dev/null || die "python3 is required (it drops the generated lines) and is not installed"
 
 cmd=${1:-}
 [ -n "$cmd" ] || die "usage: changelog.sh notes|rpm|deb [-C <tree>] [<ref>] ..."
