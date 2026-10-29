@@ -28,6 +28,11 @@ else from the history (the checkout needs its tags and history: `fetch-depth: 0`
 | `changelog.sh rpm [<ref>] <version-release>` | the one `%changelog` entry of a spec |
 | `changelog.sh deb [<ref>]` | rewrites the top entry of `debian/changelog` from the same commits |
 
+Every generated line is also judged by the patterns of `.github/actions/commit-message-check/commit-message-patterns.json`
+(read as data, the same list the commit-message check uses): a line a pattern names is dropped before it reaches the
+notes, the `%changelog` or `debian/changelog`, and `release notes: N lines dropped by the message patterns` is logged.
+An unreadable list stops the run.
+
 The version is the package's own: the spec's `Version` and `Release`, the top entry's version of
 `debian/changelog`. The spec keeps a `%changelog` heading (the build replaces what follows it) and the tree
 keeps a `debian/changelog` with one entry for the version (the build replaces its body), because the package

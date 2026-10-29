@@ -56,4 +56,27 @@ ok "deb: top entry rewritten, folded under 80 columns"
 
 "$tool" notes -C . nonesuch 2>/dev/null && fail "unknown ref accepted"
 ok "unknown ref refused"
+
+# a subject the message patterns name never reaches the notes, the %changelog or debian/changelog
+commit "Fix the meter ballast" "2026-10-04T12:00:00Z"
+commit "Generated with Claude Code: reshuffle the lanes" "2026-10-05T12:00:00Z"
+git tag v1.2.0
+for kind in notes rpm deb; do
+    case $kind in
+        notes) out=$("$tool" notes -C . v1.2.0 2>"$work/err") ;;
+        rpm)   out=$("$tool" rpm -C . v1.2.0 1.2.0-1 2>"$work/err") ;;
+        deb)   cp debian/changelog "$work/dc"; "$tool" deb -C . v1.2.0 2>"$work/err"; out=$(cat debian/changelog); cp "$work/dc" debian/changelog ;;
+    esac
+    echo "$out" | grep -q 'Fix the meter ballast' || fail "$kind: clean subject lost"
+    echo "$out" | grep -qi 'Generated with Claude' && fail "$kind: patterned subject reached the output"
+    grep -qx 'release notes: 1 lines dropped by the message patterns' "$work/err" || fail "$kind: drop line not logged: $(cat "$work/err")"
+done
+ok "notes, rpm, deb: patterned subject dropped, one log line"
+
+# sabotage: an empty pattern list lets it through, an unreadable one stops the run
+echo '{"markers": []}' > "$work/none.json"
+COMMIT_MESSAGE_PATTERNS=$work/none.json "$tool" notes -C . v1.2.0 2>/dev/null | grep -q 'Generated with Claude' || fail "sabotage: filter is decoration"
+if COMMIT_MESSAGE_PATTERNS=$work/missing.json "$tool" notes -C . v1.2.0 >/dev/null 2>&1; then fail "unreadable pattern list passed"; fi
+ok "sabotage: no patterns lets it through, unreadable list refuses"
+
 echo "changelog tests: all passed"
