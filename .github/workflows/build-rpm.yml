@@ -173,7 +173,7 @@ jobs:
         env:
           EXTRA: ${{ inputs.build-packages }}
         run: |
-          dnf install -y --setopt=install_weak_deps=False git rpm-build dnf5-plugins gcc make tar gzip \
+          dnf install -y --setopt=install_weak_deps=False git rpm-build dnf5-plugins gcc make tar gzip python3 \
             pipewire-jack-audio-connection-kit-devel $EXTRA
 
       - uses: actions/checkout@v4
