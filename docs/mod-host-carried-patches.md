@@ -19,7 +19,9 @@ starts with the same URL. The newest two are:
   in one read all run, and a command split over several reads runs once.
 - [mod-audio/mod-host#116](https://github.com/mod-audio/mod-host/pull/116): the command table holds 128 commands, and
   `protocol_add_command` refuses one past them with -1 and names it on stderr. It held 64 and dropped the rest in
-  silence: omx-clap-host's 65th registration was `quit`. audinux/fedora-spec#94 does not carry it.
+  silence: omx-clap-host's 65th registration was `quit`. audinux/fedora-spec#94 (merged 2026-10-21, Release 12)
+  does not carry it; [audinux/fedora-spec#95](https://github.com/audinux/fedora-spec/pull/95) proposes it as
+  Release 13.
 
 The source is the upstream commit the spec names, fetched from mod-audio/mod-host. No fork is built: the
 linuxnow branches are where the pull requests are staged, nothing more.
@@ -63,7 +65,7 @@ PR #94 proposes Release 12. Our 11.2 sits below it on purpose: the day audinux p
 repositories updates to audinux's package and ours is never chosen again. No Epoch is used: an Epoch would win
 over audinux for good. `ci.yml` checks each of these comparisons with `rpm.vercmp`. #94 does not carry the
 protocol-max-commands patch, so audinux's 12 holds 64 commands again: omx-clap-host stays within 64 for that
-reason, and the patch goes to audinux once mod-audio/mod-host has it.
+reason. audinux/fedora-spec#95 adds the patch as Release 13.
 
 DEB: `0.1.0-7~omx`, after the published `0.1.0-5`, `0.1.0-6~fmx` and `0.1.0-6~omx` (without the
 protocol-max-commands patch). A tilde sorts below anything, so `0.1.0-7~omx` sits above `0.1.0-6~omx` and below a
