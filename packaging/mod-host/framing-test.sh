@@ -1,6 +1,7 @@
 #!/bin/bash
-# Build framing-test.c against the libmod-host-protocol pkg-config finds and run it: exit 0 when the library
-# carries mod-audio/mod-host#113, 1 when it does not.
+# Build framing-test.c and commands-test.c against the libmod-host-protocol pkg-config finds and run them: exit 0
+# when the library carries mod-audio/mod-host#113 and takes more than 64 commands (the protocol-max-commands patch),
+# 1 when it does not.
 #
 #   framing-test.sh [<prefix>]
 #
@@ -22,3 +23,10 @@ gcc -std=gnu99 -D_GNU_SOURCE -Wall -Wextra -Werror -o "$work/framing-test" "$her
     $(pkg-config --cflags --libs mod-host-protocol) -lpthread
 ldd "$work/framing-test" | grep 'libmod-host-protocol\.so\.0 => /'
 timeout 60 "$work/framing-test"
+# shellcheck disable=SC2046
+if ! gcc -std=gnu99 -D_GNU_SOURCE -Wall -Wextra -Werror -o "$work/commands-test" "$here/commands-test.c" \
+    $(pkg-config --cflags --libs mod-host-protocol) -lpthread; then
+    echo "FAILED  65 commands registered: commands-test.c does not build against this library"
+    exit 1
+fi
+timeout 60 "$work/commands-test"

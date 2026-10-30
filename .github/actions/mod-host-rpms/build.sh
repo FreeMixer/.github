@@ -3,7 +3,7 @@
 # repository into $1: the audinux spec with the upstream pull requests it carries, until audinux ships them.
 # Runs as root in a Fedora container. RELEASE, when set, replaces the spec's Release (the dist tag is kept).
 # SUFFIX, when set, is appended to the Release after a dot and before the dist tag, so the channel's package reads
-# 11.1.omx.fc44 (docs/mod-host-carried-patches.md says why it sorts below the audinux build of the same patches).
+# 11.2.omx.fc44 (docs/mod-host-carried-patches.md says why it sorts below the audinux build of the same patches).
 set -euo pipefail
 
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
