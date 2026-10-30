@@ -27,6 +27,12 @@ inputs:
   attempts:
     description: how many times the push is tried
     default: '6'
+  site-url:
+    description: >-
+      Where the channel is served. After the push the step waits until this site serves every package the
+      commit added (live-check.sh): Pages cancels a deployment when the next push arrives, so the commit can be
+      right while the site serves the tree before it. Empty skips the wait.
+    default: https://www.openmixer.org
 
 runs:
   using: composite
@@ -41,6 +47,7 @@ runs:
         WHAT: ${{ inputs.what }}
         REBUILD: ${{ inputs.rebuild }}
         ATTEMPTS: ${{ inputs.attempts }}
+        SITE_URL: ${{ inputs.site-url }}
       run: |
         set -o pipefail
         git -C build/channel add -A "$WHAT"
@@ -92,3 +99,6 @@ runs:
         done
         gpgconf --kill gpg-agent || true; rm -rf "$GNUPGHOME"
         echo "published $TAG to $CHANNEL@$BRANCH"
+        if [ -n "$SITE_URL" ]; then
+          GH_TOKEN=$PUBLISH_TOKEN bash "$GITHUB_ACTION_PATH/live-check.sh" build/channel "$WHAT" "$SITE_URL" "$CHANNEL"
+        fi
