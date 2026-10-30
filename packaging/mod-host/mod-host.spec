@@ -4,8 +4,9 @@
 # Category: Audio, Effect
 
 # The audinux spec of mod-host as proposed in https://github.com/audinux/fedora-spec/pull/94, carried by
-# FreeMixer until audinux merges it: docs/mod-host-carried-patches.md. One change: Release is 11.1, not
-# 12, so the package audinux builds from that pull request (12) is newer than this one and replaces it.
+# FreeMixer until audinux merges it: docs/mod-host-carried-patches.md. Two changes: Release is 11.2, not
+# 12, so the package audinux builds from that pull request (12) is newer than this one and replaces it; and
+# Patch15, which that pull request does not carry.
 
 %global commit0 f14a230bf48b42035406d2b2dca038efa4d2abca
 %global gittag0 master
@@ -30,7 +31,7 @@
 
 Name: mod-host
 Version: 0.10.6.%{shortcommit0}
-Release: 11.1%{?dist}
+Release: 11.2%{?dist}
 License: GPL-3.0-or-later
 Summary: LV2 host for Jack controllable via socket or command line
 URL: https://github.com/moddevices/mod-host
@@ -71,6 +72,8 @@ Patch12: mod-host-112.patch
 Patch13: mod-host-113.patch
 # follow-up to https://github.com/mod-audio/mod-host/pull/113 - the protocol tests end each command with its NUL
 Patch14: mod-host-113b.patch
+# https://github.com/mod-audio/mod-host/pull/116 - room for 128 commands, and report a command that does not fit
+Patch15: mod-host-116.patch
 
 BuildRequires: gcc
 BuildRequires: make
@@ -160,6 +163,12 @@ install -D -m 644 %{SOURCE1} %{buildroot}%{_userunitdir}/%{name}.service
 %{_datadir}/mod-host/
 
 %changelog
+* Fri Oct 30 2026 Pau Aliagas <linuxnow@gmail.com> - 0.10.6-11.2
+- the protocol's command table holds 128 commands, and one past them is
+  refused with -1 and named on stderr instead of dropped in silence: a host
+  registering 65 lost quit, the last one it registered
+- Release 11.2: the same patches as 11.1 and this one, still below audinux's 12
+
 * Fri Oct 16 2026 Pau Aliagas <linuxnow@gmail.com> - 0.10.6-11.1
 - #112: trimming spaces no longer reads before the start of an empty command
 - #113: socket input is split into NUL-terminated commands, a command split

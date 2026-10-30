@@ -3,7 +3,7 @@ name: mod-host-protocol RPMs
 # Builds mod-host, mod-host-protocol, which carries libmod-host-protocol.so.0, and mod-host-protocol-devel from
 # packaging/mod-host for every architecture and publishes them into rpm/ of the Pages repository, where
 # omx-clap-host and plugin-hostd Require libmod-host-protocol.so.0, until audinux ships the library with the patches
-# we carry. The packages carry the spec's Version and Release with the suffix omx after it (11.1.omx.fc44): newer than
+# we carry. The packages carry the spec's Version and Release with the suffix omx after it (11.2.omx.fc44): newer than
 # audinux's build without the patches (11), older than its build with them (12), which then replaces ours
 # (docs/mod-host-carried-patches.md). Run by hand, once per change of packaging/mod-host: a published NEVRA is never
 # rebuilt with new bytes.
