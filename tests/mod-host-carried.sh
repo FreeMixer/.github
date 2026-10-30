@@ -1,7 +1,8 @@
 #!/bin/bash
 # The patches of packaging/mod-host apply to the upstream commit of the spec, the tests they bring pass, and the
-# installed protocol library carries mod-audio/mod-host#113. Then each fix is taken out again and the check that
-# guards it must fail: without the src/ part of #113 framing-test.sh fails, without the src/ part of #112 the
+# installed protocol library carries mod-audio/mod-host#113 and takes 65 commands. Then each fix is taken out again
+# and the check that guards it must fail: without the src/ part of #113 or of the protocol-max-commands patch
+# framing-test.sh fails, without the src/ part of #112 the
 # AddressSanitizer test of #112 (make utils-run) fails. Needs git, gcc, make, python3, pkg-config and libasan.
 set -uo pipefail
 
@@ -42,6 +43,11 @@ install_lib "$work/without-113" || exit 1
 expect 1 "FAILED  command of exactly 1024 bytes" \
     "sabotage: without the fix of #113 the framing test fails" "$carried/framing-test.sh" "$work/without-113/prefix"
 
+"$carried/prepare-source.sh" "$work/without-maxcmd" mod-host-116.patch || exit 1
+install_lib "$work/without-maxcmd" || exit 1
+expect 1 "FAILED  65 commands registered" \
+    "sabotage: without the protocol-max-commands patch the library refuses the 65th command" \
+    "$carried/framing-test.sh" "$work/without-maxcmd/prefix"
 "$carried/prepare-source.sh" "$work/without-112" mod-host-112.patch || exit 1
 expect 2 "AddressSanitizer: heap-buffer-overflow" \
     "sabotage: without the fix of #112 its AddressSanitizer test fails" make -s -C "$work/without-112/tests" utils-run
