@@ -1,6 +1,6 @@
 #!/bin/bash
-# Add RPMs to a dnf tree laid out as <tree>/fedora/<releasever>/<arch>/ (sources in SRPMS), sign what is
-# unsigned, regenerate the metadata of every directory that holds packages (with an updateinfo.xml of one
+# Add RPMs to a dnf tree laid out as <tree>/fedora/<releasever>/<arch>/ (sources in SRPMS), sign the ones
+# this run placed, regenerate the metadata of every directory that holds packages (with an updateinfo.xml of one
 # advisory per release, made from the packages' %changelog) and sign it.
 #
 #   publish-tree.sh <tree> <rpm dir> [<gpg key id>]     no key id: an unsigned tree, for inspection only
@@ -8,6 +8,12 @@
 # A package the tree already holds under the same file name is kept whatever the new build's bytes: a
 # published NEVRA is immutable and a rebuild that wants in bumps its Release. The tree is shared with
 # other projects, so nothing already in it is ever removed.
+#
+# ONLY WHAT THIS RUN PLACED IS SIGNED. The tree is pulled from the channel, and anyone who can write to the
+# channel can leave a package there; signing every unsigned file would turn a channel write into a package
+# signed by the release key. So a package this run did not place must already carry a good signature by a
+# key the channel serves (or this run's key), checked by rpmkeys, and an unsigned or badly signed one makes
+# the run refuse before anything is signed or indexed, naming the file.
 set -euo pipefail
 
 tree=$(readlink -m "${1:?usage: publish-tree.sh <tree> <rpm dir> [<gpg key id>]}")
@@ -25,6 +31,7 @@ mapfile -t found < <(find "$src" -name '*.rpm' | sort)
 [ "${#found[@]}" -gt 0 ] || { echo "no rpm under $src" >&2; exit 1; }
 
 declare -A dirs=()
+placed=()
 for f in "${found[@]}"; do
     IFS='|' read -r is_src arch rel < <(rpm -qp --qf '%{SOURCEPACKAGE}|%{ARCH}|%{RELEASE}\n' "$f")
     [ "$is_src" = 1 ] && archdir=SRPMS || archdir=$arch
@@ -37,17 +44,46 @@ for f in "${found[@]}"; do
         echo "kept   $(basename "$f") (already published; a changed build needs a new Release)"
     else
         install -m 0644 "$f" "$dest/"
+        placed+=("$dest/$(basename "$f")")
         echo "placed $(basename "$f") in fedora/$releasever/$archdir"
     fi
 done
 
+# A private rpm keystore holding the keys the channel serves and this run's key: what a package already in the
+# tree must verify against. rpmkeys takes one key per file, so the union is split by fingerprint first.
+trusted_keystore() {
+    local root=$1 home fpr
+    home=$(mktemp -d)
+    { if [ -s "$tree/RPM-GPG-KEY-openmixer" ]; then cat "$tree/RPM-GPG-KEY-openmixer"; fi; gpg --batch --armor --export "$key"; } |
+        GNUPGHOME=$home gpg --batch --quiet --import 2>/dev/null
+    while IFS= read -r fpr; do
+        GNUPGHOME=$home gpg --batch --armor --export "$fpr" > "$home/k.asc"
+        rpmkeys --root "$root" --import "$home/k.asc"
+    done < <(GNUPGHOME=$home gpg --batch --with-colons --fingerprint | awk -F: '/^pub:/ {p = 1; next} /^fpr:/ && p {print $10; p = 0}')
+    rm -rf "$home"
+}
+
 if [ -n "$key" ]; then
-    for dest in "${!dirs[@]}"; do
-        for f in "$dest"/*.rpm; do
-            signed "$f" || rpmsign --define "_gpg_name $key" --addsign "$f" >/dev/null
-            signed "$f" || { echo "unsigned after rpmsign: $f" >&2; exit 1; }
-        done
+    declare -A mine=()
+    for f in "${placed[@]}"; do mine[$f]=1; done
+    keystore=$(mktemp -d)
+    trusted_keystore "$keystore"
+    refused=0
+    while IFS= read -r f; do
+        [ -z "${mine[$f]:-}" ] || continue
+        out=$(rpmkeys --root "$keystore" --checksig "$f" 2>&1) || true
+        case $out in
+            *": digests signatures OK") ;;
+            *) echo "refused ${f#"$tree"/}: in the channel, not placed by this run, and not signed by a served key ($out)" >&2; refused=1 ;;
+        esac
+    done < <(find "$tree" -name '*.rpm' | sort)
+    [ "$refused" = 0 ] || { rm -rf "$keystore"; echo "the channel holds packages this run did not place and cannot vouch for: nothing was signed" >&2; exit 1; }
+    for f in "${placed[@]}"; do
+        signed "$f" || rpmsign --define "_gpg_name $key" --addsign "$f" >/dev/null
+        out=$(rpmkeys --root "$keystore" --checksig "$f" 2>&1) || true
+        case $out in *": digests signatures OK") ;; *) echo "not verified after rpmsign: $f ($out)" >&2; exit 1 ;; esac
     done
+    rm -rf "$keystore"
 fi
 
 # every directory that holds packages, not only the ones this run placed into: the metadata of the

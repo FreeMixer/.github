@@ -2,7 +2,8 @@ name: ci
 
 # The publish scripts and the key import, exercised the way a release uses them, with throwaway keys: a
 # channel signed by one key, a second key served next to it, a publish signed by the second key, and a
-# client that only ever held the first (tests/key-transition.sh). The changelog generator (from git), and
+# client that only ever held the first (tests/key-transition.sh); a package someone left in the channel is refused
+# and never signed (tests/sign-only-placed.sh). The changelog generator (from git), and
 # what the channel publish adds from them: an updateinfo.xml for dnf and a Changelogs URL for apt
 # (docs/packaging-changelog.md). The mod-host packages of packaging/mod-host: the patches apply and their tests
 # pass, each fix taken out again fails its check, and the RPMs and DEBs carry mod-audio/mod-host#113 and sort
@@ -85,6 +86,10 @@ jobs:
       - name: Publish across the key change
         shell: bash
         run: tests/key-transition.sh ${{ matrix.kind }}
+
+      - name: A package planted in the channel is refused, never signed
+        shell: bash
+        run: tests/sign-only-placed.sh ${{ matrix.kind }}
 
   changelog:
     name: changelog generator from git
