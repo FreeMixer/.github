@@ -15,6 +15,13 @@
 # signed-by file, and one good signature from it is enough). It carries a key change: apt users hold the
 # key file they saved at install time, so while it holds only the old key the index keeps a signature by
 # that key. Only the apt index is co-signed; packages and the dnf metadata carry the signing key alone.
+#
+# THE SIGNED INDEX VOUCHES ONLY FOR WHAT IS ALREADY VOUCHED FOR. A .deb carries no signature of its own: the
+# signed Release covers every package through Packages. The tree is pulled from the channel, and anyone who
+# can write to the channel can leave a .deb there, so before any index is regenerated every package this run
+# did not place must be listed, with the same SHA256, in its suite's previous Packages, whose InRelease
+# verifies against the keys the channel serves or this run signs with. Anything else makes the run refuse
+# before anything is signed, naming the file.
 set -euo pipefail
 
 tree=$(readlink -m "${1:?usage: publish-tree.sh <tree> <deb dir> [<gpg key id>]}")
@@ -57,6 +64,7 @@ mapfile -t found < <(find "$src" -name '*.deb' | sort)
 [ "${#found[@]}" -gt 0 ] || { echo "no deb under $src" >&2; exit 1; }
 
 declare -A cells=()
+declare -A mine=()
 for f in "${found[@]}"; do
     [ "$(dirname "$(dirname "$f")")" = "${src%/}" ] || { echo "$f is not laid out <suite>/<package>.deb under $src" >&2; exit 1; }
     suite=$(basename "$(dirname "$f")")
@@ -68,9 +76,49 @@ for f in "${found[@]}"; do
         echo "kept   $(basename "$f") (already published; a changed build needs a new version)"
     else
         install -m 0644 "$f" "$dest/"
+        mine[$dest/$(basename "$f")]=1
         echo "placed $(basename "$f") in debian/$suite/$arch"
     fi
 done
+
+# The previous index of <suite dir>, as "<sha256> ./<arch>/<file>" lines, when its InRelease carries a good
+# signature by a key of <keyring> and the Packages beside it is the one that InRelease names. Nothing otherwise.
+vouched() {
+    local dir=$1 keyring=$2 release want got
+    [ -f "$dir/InRelease" ] && [ -f "$dir/Packages" ] || return 0
+    release=$(mktemp)
+    # gpgv exits non-zero when one of the signatures is by a key it lacks (a co-signed index): read its status
+    { gpgv --status-fd 3 --keyring "$keyring" --output "$release" "$dir/InRelease" 3>&1 1>/dev/null 2>/dev/null || true; } |
+        awk '/BADSIG/ {b = 1} /VALIDSIG/ {g = 1} END {exit !(g && !b)}' || { rm -f "$release"; return 0; }
+    want=$(awk '/^SHA256:/ {s = 1; next} /^[^ ]/ {s = 0} s && $3 == "Packages" {print $1}' "$release")
+    rm -f "$release"
+    got=$(sha256sum < "$dir/Packages" | cut -d' ' -f1)
+    [ -n "$want" ] && [ "$want" = "$got" ] || return 0
+    awk '/^Filename:/ {f = $2} /^SHA256:/ {h = $2} /^$/ {if (f != "" && h != "") print h, f; f = ""; h = ""}
+        END {if (f != "" && h != "") print h, f}' "$dir/Packages"
+}
+
+if [ -n "$key" ]; then
+    keyring=$(mktemp)
+    # shellcheck disable=SC2086 # cosign is one key id or empty
+    { if [ -s "$tree/openmixer.asc" ]; then cat "$tree/openmixer.asc"; fi; gpg --batch --armor --export $key $cosign; } |
+        gpg --batch --yes --dearmor > "$keyring"
+    refused=0
+    for suitedir in "$tree"/debian/*/; do
+        [ -d "$suitedir" ] || continue
+        index=$(vouched "${suitedir%/}" "$keyring")
+        while IFS= read -r f; do
+            [ -z "${mine[$f]:-}" ] || continue
+            rel=./${f#"${suitedir}"}
+            if ! grep -qxF "$(sha256sum < "$f" | cut -d' ' -f1) $rel" <<< "$index"; then
+                echo "refused ${f#"$tree"/}: in the channel, not placed by this run, and not in its suite's signed index" >&2
+                refused=1
+            fi
+        done < <(find "$suitedir" -name '*.deb' | sort)
+    done
+    rm -f "$keyring"
+    [ "$refused" = 0 ] || { echo "the channel holds packages this run did not place and cannot vouch for: nothing was signed" >&2; exit 1; }
+fi
 
 # every package of the tree, so a release published before the Changelogs field existed gets its file too
 while IFS= read -r f; do place_changelog "$f"; done < <(find "$tree/debian" -name '*.deb' | sort)
