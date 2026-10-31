@@ -4,9 +4,9 @@
 # Category: Audio, Effect
 
 # The audinux spec of mod-host as proposed in https://github.com/audinux/fedora-spec/pull/94, carried by
-# FreeMixer until audinux merges it: docs/mod-host-carried-patches.md. Two changes: Release is 11.2, not
+# FreeMixer until audinux merges it: docs/mod-host-carried-patches.md. Three changes: Release is 11.3, not
 # 12, so the package audinux builds from that pull request (12) is newer than this one and replaces it; and
-# Patch15, which that pull request does not carry.
+# Patch15 and Patch16, which that pull request does not carry.
 
 %global commit0 f14a230bf48b42035406d2b2dca038efa4d2abca
 %global gittag0 master
@@ -31,7 +31,7 @@
 
 Name: mod-host
 Version: 0.10.6.%{shortcommit0}
-Release: 11.2%{?dist}
+Release: 11.3%{?dist}
 License: GPL-3.0-or-later
 Summary: LV2 host for Jack controllable via socket or command line
 URL: https://github.com/moddevices/mod-host
@@ -74,6 +74,8 @@ Patch13: mod-host-113.patch
 Patch14: mod-host-113b.patch
 # https://github.com/mod-audio/mod-host/pull/116 - room for 128 commands, and report a command that does not fit
 Patch15: mod-host-116.patch
+# FreeMixer/mod-host#12 - both ports listen on 127.0.0.1 unless socket_set_bind_address() or "mod-host -b" says otherwise
+Patch16: mod-host-bind.patch
 
 BuildRequires: gcc
 BuildRequires: make
@@ -163,6 +165,12 @@ install -D -m 644 %{SOURCE1} %{buildroot}%{_userunitdir}/%{name}.service
 %{_datadir}/mod-host/
 
 %changelog
+* Sat Oct 31 2026 Pau Aliagas <linuxnow@gmail.com> - 0.10.6-11.3
+- the socket and feedback ports listen on 127.0.0.1 instead of every address
+  of the machine; socket_set_bind_address() before socket_start(), or
+  "mod-host -b <address>", widens it
+- Release 11.3: the same patches as 11.2 and this one, still below audinux's 12
+
 * Fri Oct 30 2026 Pau Aliagas <linuxnow@gmail.com> - 0.10.6-11.2
 - the protocol's command table holds 128 commands, and one past them is
   refused with -1 and named on stderr instead of dropped in silence: a host
