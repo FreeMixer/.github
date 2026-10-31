@@ -171,10 +171,10 @@ jobs:
           evr=$(rpm -qp --qf '%{VERSION}-%{RELEASE}' mod-host-rpms/mod-host-protocol-[0-9]*.rpm)
           v=${evr%%-*}
           echo "built $evr"
-          case "$evr" in "$v-11.2.omx.fc44") ;; *) echo "::error::$evr is not $v-11.2.omx.fc44"; exit 1 ;; esac
+          case "$evr" in "$v-11.3.omx.fc44") ;; *) echo "::error::$evr is not $v-11.3.omx.fc44"; exit 1 ;; esac
           cmp() { rpm --eval "%{lua: print(rpm.vercmp('$1', '$2'))}"; }
           fail=0
-          for pair in "$evr $v-11.1.omx.fc44 1" "$evr $v-11.1.fmx.fc44 1" "$evr $v-11.fmx.fc44 1" "$evr $v-11.fc44 1" "$evr $v-12.fc44 -1" \
+          for pair in "$evr $v-11.2.omx.fc44 1" "$evr $v-11.1.omx.fc44 1" "$evr $v-11.1.fmx.fc44 1" "$evr $v-11.fmx.fc44 1" "$evr $v-11.fc44 1" "$evr $v-12.fc44 -1" \
                       "$evr $v-11.1 1" "$v-12.fc44 $v-11.1 1" "$v-11.1.fmx.fc44 $v-11.1 1" \
                       "$v-11.fmx.fc44 $v-11.1 -1" "$v-11.fc44 $v-11.1 -1"; do
             set -- $pair
@@ -208,11 +208,12 @@ jobs:
           ver=$(dpkg-query -W -f='${Version}' libmod-host-protocol0)
           echo "built $ver"
           dpkg --compare-versions "$ver" gt 0.1.0-5
-          dpkg --compare-versions "$ver" eq 0.1.0-7~omx
+          dpkg --compare-versions "$ver" eq 0.1.0-8~omx
+          dpkg --compare-versions "$ver" gt 0.1.0-7~omx
           dpkg --compare-versions "$ver" gt 0.1.0-6~omx
           dpkg --compare-versions "$ver" gt 0.1.0-6~fmx
           dpkg --compare-versions "$ver" ge 0.1.0-6~fmx
-          dpkg --compare-versions "$ver" lt 0.1.0-7
+          dpkg --compare-versions "$ver" lt 0.1.0-8
           dpkg --compare-versions 0.1.0-5 lt 0.1.0-6~fmx
 
   # The two checks every repository runs from here: dependency floors from one packaging/deps.txt, and no
