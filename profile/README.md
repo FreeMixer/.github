@@ -34,11 +34,6 @@ chain's LV2 and CLAP plugins through plugin-hostd, with the plugin menus ordered
 [plugin-qualify](https://github.com/FreeMixer/plugin-qualify) records. Those records for a ZynthianOS
 Vangelis image on a Raspberry Pi 5 are in [omx-qualification-records](https://github.com/FreeMixer/omx-qualification-records).
 
-Tried so far on one Raspberry Pi 5, and only digitally: chains of LV2 and CLAP plugins play, measured at the JACK
-ports. Nobody has listened to the analog outputs yet, and Surge XT as LV2 through plugin-hostd is silent today. What
-is proven, what is not and what closes each gap is written down in
-[plugin-hostd's Zynthian status](https://github.com/FreeMixer/plugin-hostd/blob/main/docs/zynthian/status.md).
-
 Repository, package and pkg-config names of every piece:
 https://www.openmixer.org/docs/plugins-names/
 
