@@ -4,7 +4,7 @@
 # Version-Release is the release of debian/changelog too: build.sh refuses a build where the two differ.
 Name:           openmixer-release
 Version:        1
-Release:        3%{?dist}
+Release:        4%{?dist}
 Summary:        OpenMixer package repository configuration for dnf
 License:        MIT
 URL:            https://www.openmixer.org
@@ -29,6 +29,9 @@ install -Dpm 0644 %{SOURCE1} %{buildroot}%{_sysconfdir}/pki/rpm-gpg/RPM-GPG-KEY-
 %{_sysconfdir}/pki/rpm-gpg/RPM-GPG-KEY-openmixer
 
 %changelog
+* Sun Nov 01 2026 Pau Aliagas <linuxnow@gmail.com> - 1-4
+- Ships the channel's public keys with the new release signing key beside the old one.
+
 * Mon Oct 26 2026 Pau Aliagas <linuxnow@gmail.com> - 1-3
 - Released with the deb, which now serves Ubuntu from the trixie source; the repository file is unchanged.
 

@@ -1,3 +1,10 @@
+openmixer-release (1-4) unstable; urgency=medium
+
+  * Ships the channel's public keys, the new release signing key beside
+    the old one.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Sun, 01 Nov 2026 10:00:00 +0100
+
 openmixer-release (1-3) unstable; urgency=medium
 
   * Ubuntu takes the trixie source instead of failing the install.
