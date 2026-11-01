@@ -49,7 +49,8 @@ committed_files() {
 # the fingerprints of the packages lines of the list, upper case
 pinned_fprs() {
     [ -s "$pinned_list" ] || { echo "::error::the pinned fingerprint list $pinned_list is missing or empty" >&2; return 1; }
-    awk '$1 !~ /^#/ && $2 == "packages" && $1 ~ /^[0-9A-Fa-f]{40}$/ {print toupper($1)}' "$pinned_list"
+    # no {40} interval: mawk, the awk of Debian, reads it as the text "{40}" and finds no fingerprint
+    awk '$1 !~ /^#/ && $2 == "packages" && length($1) == 40 && $1 ~ /^[0-9A-Fa-f]+$/ {print toupper($1)}' "$pinned_list"
 }
 
 # <what> <fingerprint>...: refuse any that is not pinned
