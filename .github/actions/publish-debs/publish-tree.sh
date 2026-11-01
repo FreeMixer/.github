@@ -101,6 +101,11 @@ vouched() {
 if [ -n "$key" ]; then
     # vouched() reads the previous index with gpgv; without it every package of the channel would look unvouched
     command -v gpgv >/dev/null || { echo "gpgv is not installed: the channel's signed index cannot be read, so nothing can be vouched for and nothing was signed" >&2; exit 1; }
+    # the key file is the channel's to write: it is read only if every primary in it, and every key this run signs
+    # with, is on the list committed in this repository (channel-keys.sh)
+    # shellcheck disable=SC2086 # cosign is one key id or empty
+    "$(dirname "$(readlink -f "$0")")/../import-gpg-key/channel-keys.sh" pinned "$tree/openmixer.asc" $key $cosign ||
+        { echo "the channel's key file is not one this repository pins: nothing was signed" >&2; exit 1; }
     keyring=$(mktemp)
     # shellcheck disable=SC2086 # cosign is one key id or empty
     { if [ -s "$tree/openmixer.asc" ]; then cat "$tree/openmixer.asc"; fi; gpg --batch --armor --export $key $cosign; } |
