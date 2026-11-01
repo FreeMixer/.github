@@ -19,6 +19,8 @@ pubring() { gpg --batch --armor --export "$1" > "$work/$2.asc"; gpg --batch --ye
 # the throwaway keys stand for the pinned list (pinned-fingerprints.txt)
 export PINNED_FINGERPRINTS=$work/pinned.txt
 printf '%s packages throwaway\n' "$OLD_ID" "$NEW_ID" > "$PINNED_FINGERPRINTS"
+mkdir "$work/no-committed"
+export SERVED_KEYS_DIR=$work/no-committed # the committed keys are pinned in the real list, not in this throwaway one
 pubring "$OLD_ID" old
 pubring "$NEW_ID" new
 
@@ -55,6 +57,21 @@ rpm)
     dnf -y --disablerepo='*' --enablerepo=t install pkg-old pkg-new
     rpm -q pkg-old pkg-new
     rm -f /etc/yum.repos.d/t.repo
+    # the key committed to this repository (served-keys/) instead of a hand `serve`: a channel that has only ever
+    # served the old key takes a publish signed by the new one, and the old package in it still verifies
+    tree=$work/rpm-committed
+    file=$tree/RPM-GPG-KEY-openmixer
+    "$actions/publish-rpms/publish-tree.sh" "$tree" "$work/src-pkg-old" "$OLD_ID"
+    if "$keys" check "$file" "$NEW_ID"; then fail "check accepted $NEW_ID, which is neither served nor committed"; fi
+    mkdir "$work/committed"
+    cp "$work/new.asc" "$work/committed/new.asc"
+    export SERVED_KEYS_DIR=$work/committed
+    "$keys" check "$file" "$NEW_ID" || fail "check refused $NEW_ID, which is committed"
+    "$actions/publish-rpms/publish-tree.sh" "$tree" "$work/src-pkg-new" "$NEW_ID"
+    [ "$(served "$file")" = "$want" ] || fail "the committed key was not served: $(served "$file"), want $want"
+    for md in "$tree"/fedora/*/*/repodata/repomd.xml; do
+        gpgv --keyring "$work/new.gpg" "$md.asc" "$md" 2>/dev/null || fail "$md is not signed by the new key (committed)"
+    done
     ;;
 deb)
     mkpkg() {
@@ -92,6 +109,20 @@ deb)
         apt-get remove -y pkg-old pkg-new >/dev/null
     done
     rm -f /etc/apt/sources.list.d/t.list
+    # the key committed to this repository (served-keys/) instead of a hand `serve`
+    tree=$work/deb-committed
+    file=$tree/openmixer.asc
+    "$actions/publish-debs/publish-tree.sh" "$tree" "$work/src-pkg-old" "$OLD_ID"
+    if "$keys" check "$file" "$NEW_ID"; then fail "check accepted $NEW_ID, which is neither served nor committed"; fi
+    mkdir "$work/committed"
+    cp "$work/new.asc" "$work/committed/new.asc"
+    export SERVED_KEYS_DIR=$work/committed
+    "$keys" check "$file" "$NEW_ID" || fail "check refused $NEW_ID, which is committed"
+    COSIGN=$OLD_ID "$actions/publish-debs/publish-tree.sh" "$tree" "$work/src-pkg-new" "$NEW_ID"
+    [ "$(served "$file")" = "$want" ] || fail "the committed key was not served: $(served "$file"), want $want"
+    for ring in old new; do
+        goodsig "$work/$ring.gpg" "$tree/debian/trixie/InRelease" || fail "InRelease (committed) has no good signature by the $ring key"
+    done
     ;;
 *) fail "unknown kind $1" ;;
 esac

@@ -8,8 +8,10 @@
 #   packages  signs the rpms, the dnf metadata and the apt index (OPENMIXER_PACKAGES_SIGNING_KEY); served to clients
 #   site      signs the commits to the channel repository (SITE_GPG_KEY); never served as a package key
 #
-# Adding or retiring a key is a reviewed commit here (tests/pinned-keys.sh checks the file's shape). Read from the
+# Adding or retiring a key is a reviewed commit here (tests/pinned-keys.sh checks the file's shape). A packages key whose
+# public half is not yet in a channel is also committed in served-keys/ (channel-keys.sh). Read from the
 # channel's served key files and from the signatures on published releases and channel commits, 2026-11-01.
-5CB7E2D404C46D6A16F05D871B5B7D400616FA4D packages OpenMixer Release Signing Key <packages@openmixer.org>; signing subkey 0AB4D5486254FFB1C70904A2581BDCD79D01F615 signs the rpms, the repomd.xml and the InRelease files
+6AF1C62FF70BD10D5CA9DDE58A27655323BADDA6 packages OpenMixer Release Signing Key <packages@openmixer.org>; ed25519, 2026-11-01; replaced the lost OPENMIXER_PACKAGES_SIGNING_KEY, signs the packages from the next release on; public half committed in served-keys/
+5CB7E2D404C46D6A16F05D871B5B7D400616FA4D packages OpenMixer Release Signing Key <packages@openmixer.org>; signing subkey 0AB4D5486254FFB1C70904A2581BDCD79D01F615 signed every package published before 2026-11-01 (rpms, repomd.xml, InRelease); its public half stays served
 618C08DC2CE0B56AB8789DFBA14B3E1E1F69EBF4 packages Linux Now <linuxnow@gmail.com>; the first channel key, still served so clients that imported it keep verifying
 FCAE5637A07C35AF7A1F5F0AEE5937AE9AAB4943 site Linux Now (FreeMixer CI) <linuxnow@gmail.com>; signs the channel commits
