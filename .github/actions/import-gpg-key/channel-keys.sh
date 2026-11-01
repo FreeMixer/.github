@@ -4,6 +4,7 @@
 #   channel-keys.sh check <key file> <fingerprint>...   every fingerprint is a primary the file serves
 #   channel-keys.sh serve <key file> <key id>...        the file becomes what it served plus these keys
 #   channel-keys.sh pinned <key file> [<key id>...]     every primary the file serves, and every key named, is pinned
+#   channel-keys.sh emit <key file>                     the armored keys of the file plus the committed keys, on stdout
 #
 # THE TRUST ROOT IS NOT THE CHANNEL. pinned-fingerprints.txt (committed beside this script, in the repository the
 # action is checked out from) lists the primaries OpenMixer signs with. A served key file holding any other
@@ -17,6 +18,13 @@
 # so for apt the index is co-signed while the old key is still in users' keyrings (publish-debs). A key
 # leaves the file only by a hand commit to the channel, when its retirement is decided.
 #
+# SIGNING KEYS COMMITTED HERE. served-keys/*.asc (beside this script; SERVED_KEYS_DIR names another directory)
+# holds the public half of every key OpenMixer signs with that is not only in the channel: each is served by
+# every publish next to what the channel served (serve), is trusted by the publishers' keystore and keyring and
+# shipped by openmixer-release (emit), and is accepted by check before the channel has ever served it, so the
+# first release signed by a new key is not refused for a key file that does not hold it yet. Each must be
+# pinned; the old key's public half is not here, it stays in the file the channel serves.
+#
 # check with no file (the first publish into an empty channel) warns and passes: there is nothing yet a
 # client could have imported.
 set -euo pipefail
@@ -25,6 +33,18 @@ primaries() { gpg --batch --with-colons --import-options show-only --import 2>/d
     awk -F: '/^pub:/ {p = 1; next} /^fpr:/ && p {print $10; p = 0}'; }
 
 pinned_list=${PINNED_FINGERPRINTS:-$(dirname "$(readlink -f "$0")")/pinned-fingerprints.txt}
+committed_dir=${SERVED_KEYS_DIR:-$(dirname "$(readlink -f "$0")")/served-keys}
+
+# the committed public key files, each refused unless every primary in it is pinned
+committed_files() {
+    local f fpr
+    for f in "$committed_dir"/*.asc; do
+        [ -f "$f" ] || continue
+        # shellcheck disable=SC2046 # the fingerprints are words
+        require_pinned "the committed key file $f" $(primaries < "$f") || exit 1
+        echo "$f"
+    done
+}
 
 # the fingerprints of the packages lines of the list, upper case
 pinned_fprs() {
@@ -52,9 +72,21 @@ primary_of() { gpg --batch --with-colons --fingerprint "$1" 2>/dev/null | awk -F
 cmd=${1:?usage: channel-keys.sh check|serve|pinned <key file> <key>...}
 file=${2:?usage: channel-keys.sh check|serve|pinned <key file> <key>...}
 shift 2
-[ "$#" -gt 0 ] || [ "$cmd" = pinned ] || { echo "channel-keys.sh $cmd: no key named" >&2; exit 2; }
+[ "$#" -gt 0 ] || [ "$cmd" = pinned ] || [ "$cmd" = emit ] || { echo "channel-keys.sh $cmd: no key named" >&2; exit 2; }
+
+# a committed key that is not pinned stops the command here, in this shell, not in a substitution below
+case "$cmd" in emit | check | serve) committed_files > /dev/null ;; esac
 
 case "$cmd" in
+emit)
+    if [ -s "$file" ]; then
+        served=$(primaries < "$file")
+        # shellcheck disable=SC2046 # the fingerprints are words
+        require_pinned "the key file $file" $served
+        cat "$file"
+    fi
+    while IFS= read -r f; do cat "$f"; done < <(committed_files)
+    ;;
 pinned)
     # no file yet (the first publish into an empty channel): only the named keys are checked
     served=
@@ -85,8 +117,9 @@ check)
     [ -n "$served" ] || { echo "::error::no fingerprint readable from $file"; exit 1; }
     # shellcheck disable=SC2046 # the fingerprints are words
     require_pinned "the key file $file" $served
+    committed=$(while IFS= read -r f; do primaries < "$f"; done < <(committed_files))
     for fpr in "$@"; do
-        grep -qx "$fpr" <<< "$served" || {
+        grep -qx "$fpr" <<< "$served"$'\n'"$committed" || {
             echo "::error::the signing key $fpr is not one the channel serves at $file ($(tr '\n' ' ' <<< "$served")) -- refusing to sign with a key clients cannot verify"
             exit 1
         }
@@ -97,7 +130,7 @@ serve)
     for k in "$@"; do require_pinned "the signing key $k" "$(primary_of "$k")" || exit 1; done
     home=$(mktemp -d)
     trap 'rm -rf "$home"' EXIT
-    { if [ -s "$file" ]; then cat "$file"; fi; gpg --armor --export "$@"; } |
+    { if [ -s "$file" ]; then cat "$file"; fi; gpg --armor --export "$@"; while IFS= read -r f; do cat "$f"; done < <(committed_files); } |
         GNUPGHOME=$home gpg --batch --quiet --import 2>/dev/null
     GNUPGHOME=$home gpg --batch --armor --export > "$file.new"
     for k in "$@"; do

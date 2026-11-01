@@ -32,6 +32,8 @@ gpg --batch --armor --export real@example.org > "$work/real.asc"
 gpg --batch --armor --export other@example.org > "$work/other.asc"
 cat "$work/real.asc" "$work/other.asc" > "$work/both.asc"
 export PINNED_FINGERPRINTS=$work/list
+mkdir "$work/none"
+export SERVED_KEYS_DIR=$work/none # throwaway lists see no committed key until the committed-keys section
 pin() { : > "$PINNED_FINGERPRINTS"; for f in "$@"; do printf '%s packages test\n' "$f" >> "$PINNED_FINGERPRINTS"; done; }
 refuse() { local what=$1; shift; if "$@" >/dev/null 2>&1; then fail "accepted $what"; fi; }
 
@@ -57,9 +59,47 @@ refuse "a missing list" "$keys" pinned "$work/real.asc"
 # the committed list stands against a key it does not carry
 refuse "a throwaway key against the committed list" env -u PINNED_FINGERPRINTS "$keys" pinned "$work/real.asc"
 
+# keys committed to this repository (served-keys/) are served by every publish beside what the channel served,
+# so a new signing key is accepted by the honesty check before the channel has ever served it
+mkdir "$work/committed"
+cp "$work/other.asc" "$work/committed/other.asc"
+export SERVED_KEYS_DIR=$work/committed
+primaries() { gpg --batch --with-colons --import-options show-only --import 2>/dev/null |
+    awk -F: '/^pub:/ {p = 1; next} /^fpr:/ && p {print $10; p = 0}' | sort | tr '\n' ' '; }
+pin "$real" "$other"
+"$keys" check "$work/real.asc" "$other" >/dev/null || fail "check refused a committed key the channel has not served yet"
+"$keys" check "$work/real.asc" "$real" "$other" >/dev/null || fail "check refused the served key and the committed one"
+[ "$("$keys" emit "$work/real.asc" | primaries)" = "$(printf '%s\n' "$real" "$other" | sort | tr '\n' ' ')" ] ||
+    fail "emit is not the served file plus the committed keys"
+cp "$work/real.asc" "$work/served.asc"
+"$keys" serve "$work/served.asc" "$real"
+[ "$(primaries < "$work/served.asc")" = "$(printf '%s\n' "$real" "$other" | sort | tr '\n' ' ')" ] ||
+    fail "serve did not add the committed key to the served file"
+pin "$real"
+refuse "a committed key that is not pinned" "$keys" emit "$work/real.asc"
+refuse "serve with a committed key that is not pinned" "$keys" serve "$work/served.asc" "$real"
+refuse "check of an unpinned committed key" "$keys" check "$work/real.asc" "$other"
+export SERVED_KEYS_DIR=$work/none
+refuse "check of a key neither served nor committed" "$keys" check "$work/real.asc" "$other"
+
+# the committed directory: every key in it is pinned in the committed list, and the 2026-11-01 key is both
+unset PINNED_FINGERPRINTS SERVED_KEYS_DIR
+newfpr=6AF1C62FF70BD10D5CA9DDE58A27655323BADDA6
+oldfpr=5CB7E2D404C46D6A16F05D871B5B7D400616FA4D
+grep -q "^$newfpr packages " "$committed" || fail "the 2026-11-01 key is not pinned"
+grep -q "^$oldfpr packages " "$committed" || fail "the first release key is no longer pinned"
+"$keys" emit "$work/no-such-file" | primaries | grep -q "$newfpr" || fail "the committed keys do not carry the 2026-11-01 key"
+export PINNED_FINGERPRINTS=$work/list SERVED_KEYS_DIR=$work/none
+pin "$real"
+
 # openmixer-release ships the served file: build.sh stops at an unpinned key, before it builds anything
 pin "$real"
 refuse "build.sh on an unpinned key" "$here/../packaging/openmixer-release/build.sh" rpm "$work/both.asc" "$work/out"
 out=$("$here/../packaging/openmixer-release/build.sh" rpm "$work/real.asc" "$work/out" 2>&1 || true)
 grep -q 'ships' <<< "$out" || fail "build.sh did not get past the pin with a pinned key: $out"
+# ... and with a committed key it ships the served key and the committed one, so a client of the new package verifies both
+export SERVED_KEYS_DIR=$work/committed
+pin "$real" "$other"
+out=$("$here/../packaging/openmixer-release/build.sh" rpm "$work/real.asc" "$work/out2" 2>&1 || true)
+grep -q "ships .*$real" <<< "$out" && grep -q "ships .*$other" <<< "$out" || fail "build.sh does not ship the served key and the committed key: $out"
 echo "pinned-keys: the list is well formed; unpinned keys and a sabotaged list refused; pinned keys pass"
