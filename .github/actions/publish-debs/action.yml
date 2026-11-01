@@ -52,7 +52,7 @@ runs:
   steps:
     - name: Install the packaging tools
       shell: bash
-      run: apt-get update -qq && apt-get install -y --no-install-recommends apt-utils gnupg git curl ca-certificates findutils dpkg-dev
+      run: apt-get update -qq && apt-get install -y --no-install-recommends apt-utils gnupg gpgv git curl ca-certificates findutils dpkg-dev
 
     - name: Prove the packages are there before anything signs them
       shell: bash
