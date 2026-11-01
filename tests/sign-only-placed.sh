@@ -104,6 +104,16 @@ deb)
     cp "$work/Packages.keep" "$suite/Packages"
     rm -f "$suite/all/evil_1_all.deb" "$suite/all/pkg-b_1_all.deb"
 
+    # no gpgv (a minimal Debian image installs gnupg without it): the run says so instead of calling the whole
+    # channel unvouched, and signs nothing. A PATH of the system's tools minus gpgv stands for that image.
+    nogpgv=$work/nogpgv
+    mkdir "$nogpgv"
+    for t in /usr/bin/*; do [ "$(basename "$t")" = gpgv ] || ln -s "$t" "$nogpgv/"; done
+    if out=$(PATH=$nogpgv publish pkg-b-real 2>&1); then fail "the publish ran without gpgv: $out"; fi
+    grep -q 'gpgv is not installed' <<< "$out" || fail "a missing gpgv is not named: $out"
+    [ "$(sha256sum < "$suite/InRelease")" = "$inrelease" ] || fail "the run without gpgv re-signed the index"
+    rm -f "$suite/all/pkg-b_1_all.deb"
+
     # gone again: the same publish passes and the index lists both
     publish pkg-b-real >/dev/null
     grep -q '^Package: pkg-b$' "$suite/Packages" || fail "a clean publish did not index its package"
