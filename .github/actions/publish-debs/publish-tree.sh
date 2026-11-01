@@ -108,7 +108,7 @@ if [ -n "$key" ]; then
         { echo "the channel's key file is not one this repository pins: nothing was signed" >&2; exit 1; }
     keyring=$(mktemp)
     # shellcheck disable=SC2086 # cosign is one key id or empty
-    { if [ -s "$tree/openmixer.asc" ]; then cat "$tree/openmixer.asc"; fi; gpg --batch --armor --export $key $cosign; } |
+    { "$(dirname "$(readlink -f "$0")")/../import-gpg-key/channel-keys.sh" emit "$tree/openmixer.asc"; gpg --batch --armor --export $key $cosign; } |
         gpg --batch --yes --dearmor > "$keyring"
     refused=0
     for suitedir in "$tree"/debian/*/; do

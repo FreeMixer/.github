@@ -28,11 +28,20 @@ primaries=$(gpg --batch --with-colons --import-options show-only --import < "$ke
 # the channel serves that file and its writers could replace it: only a file of pinned primaries is shipped
 "$here/../../.github/actions/import-gpg-key/channel-keys.sh" pinned "$key" ||
     { echo "$key holds a key this repository does not pin: not shipping it" >&2; exit 1; }
-echo "openmixer-release $version-$release ($kind) ships $(tr '\n' ' ' <<< "$primaries")"
 
 mkdir -p "$out"
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
+# what ships is the served file plus the public keys committed to this repository (a new signing key reaches a
+# machine here, before it meets a package that key signed; the old key stays in the served file)
+"$here/../../.github/actions/import-gpg-key/channel-keys.sh" emit "$key" |
+    GNUPGHOME=$(mkdir -m 700 "$work/gnupg" && echo "$work/gnupg") gpg --batch --quiet --import 2>/dev/null || true
+GNUPGHOME=$work/gnupg gpg --batch --armor --export > "$work/keys.asc" 2>/dev/null || true
+[ -s "$work/keys.asc" ] || { echo "no public key to ship from $key" >&2; exit 1; }
+primaries=$(gpg --batch --with-colons --import-options show-only --import < "$work/keys.asc" 2>/dev/null |
+    awk -F: '/^pub:/ {p = 1; next} /^fpr:/ && p {print $10; p = 0}')
+key=$work/keys.asc
+echo "openmixer-release $version-$release ($kind) ships $(tr '\n' ' ' <<< "$primaries")"
 case "$kind" in
 rpm)
     mkdir -p "$work/SOURCES"
