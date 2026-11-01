@@ -16,6 +16,9 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 served() { gpg --batch --with-colons --import-options show-only --import < "$1" 2>/dev/null |
     awk -F: '/^pub:/ {p = 1; next} /^fpr:/ && p {print $10; p = 0}' | sort | tr '\n' ' '; }
 pubring() { gpg --batch --armor --export "$1" > "$work/$2.asc"; gpg --batch --yes --dearmor -o "$work/$2.gpg" "$work/$2.asc"; }
+# the throwaway keys stand for the pinned list (pinned-fingerprints.txt)
+export PINNED_FINGERPRINTS=$work/pinned.txt
+printf '%s packages throwaway\n' "$OLD_ID" "$NEW_ID" > "$PINNED_FINGERPRINTS"
 pubring "$OLD_ID" old
 pubring "$NEW_ID" new
 

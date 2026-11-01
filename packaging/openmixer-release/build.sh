@@ -25,6 +25,9 @@ debver=$(sed -n '1s/^openmixer-release (\([^)]*\)).*/\1/p' "$here/debian/changel
 primaries=$(gpg --batch --with-colons --import-options show-only --import < "$key" 2>/dev/null |
     awk -F: '/^pub:/ {p = 1; next} /^fpr:/ && p {print $10; p = 0}')
 [ -n "$primaries" ] || { echo "no public key readable from $key" >&2; exit 1; }
+# the channel serves that file and its writers could replace it: only a file of pinned primaries is shipped
+"$here/../../.github/actions/import-gpg-key/channel-keys.sh" pinned "$key" ||
+    { echo "$key holds a key this repository does not pin: not shipping it" >&2; exit 1; }
 echo "openmixer-release $version-$release ($kind) ships $(tr '\n' ' ' <<< "$primaries")"
 
 mkdir -p "$out"

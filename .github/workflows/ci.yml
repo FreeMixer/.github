@@ -3,7 +3,8 @@ name: ci
 # The publish scripts and the key import, exercised the way a release uses them, with throwaway keys: a
 # channel signed by one key, a second key served next to it, a publish signed by the second key, and a
 # client that only ever held the first (tests/key-transition.sh); a package someone left in the channel is refused
-# and never signed (tests/sign-only-placed.sh). The changelog generator (from git), and
+# and never signed (tests/sign-only-placed.sh), and so is a key file whose keys the repository does not pin
+# (tests/pinned-keys.sh). The changelog generator (from git), and
 # what the channel publish adds from them: an updateinfo.xml for dnf and a Changelogs URL for apt
 # (docs/packaging-changelog.md). The mod-host packages of packaging/mod-host: the patches apply and their tests
 # pass, each fix taken out again fails its check, and the RPMs and DEBs carry mod-audio/mod-host#113 and sort
@@ -35,6 +36,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - run: tests/commit-message-check.sh
       - run: tests/preamble-actions.sh
+      - run: tests/pinned-keys.sh
       - run: tests/install-clean-retry.sh
       - name: The action reads this pull request's own commits
         if: github.event_name == 'pull_request'

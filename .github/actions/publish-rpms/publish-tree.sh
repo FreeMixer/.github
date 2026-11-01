@@ -66,6 +66,10 @@ trusted_keystore() {
 if [ -n "$key" ]; then
     declare -A mine=()
     for f in "${placed[@]}"; do mine[$f]=1; done
+    # the key file is the channel's to write: it is read only if every primary in it, and the key this run signs
+    # with, is on the list committed in this repository (channel-keys.sh)
+    "$(dirname "$(readlink -f "$0")")/../import-gpg-key/channel-keys.sh" pinned "$tree/RPM-GPG-KEY-openmixer" "$key" ||
+        { echo "the channel's key file is not one this repository pins: nothing was signed" >&2; exit 1; }
     keystore=$(mktemp -d)
     trusted_keystore "$keystore"
     refused=0
