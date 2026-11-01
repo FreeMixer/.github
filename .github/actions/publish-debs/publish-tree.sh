@@ -99,6 +99,8 @@ vouched() {
 }
 
 if [ -n "$key" ]; then
+    # vouched() reads the previous index with gpgv; without it every package of the channel would look unvouched
+    command -v gpgv >/dev/null || { echo "gpgv is not installed: the channel's signed index cannot be read, so nothing can be vouched for and nothing was signed" >&2; exit 1; }
     keyring=$(mktemp)
     # shellcheck disable=SC2086 # cosign is one key id or empty
     { if [ -s "$tree/openmixer.asc" ]; then cat "$tree/openmixer.asc"; fi; gpg --batch --armor --export $key $cosign; } |
