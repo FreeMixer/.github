@@ -3,7 +3,11 @@
 # package someone left in it reaches the run: an unsigned RPM, an RPM signed by a key the channel does not
 # serve, a .deb the signed index never listed, or one swapped under a listed name. Each makes the publish
 # refuse, names the file, signs nothing and leaves the planted file as it was; once it is gone the same
-# publish passes. Throwaway keys in a scratch keyring.
+# publish passes. The key file the channel serves is the channel's to write as well: a second key added to it, or
+# the file replaced by another key's, is refused because the fingerprints the publish trusts are the list committed
+# in this repository (pinned-fingerprints.txt), not the file; a list that does not pin the release key refuses
+# too, and the same attack passes once its key is pinned, which shows the list is what stops it. Throwaway keys
+# in a scratch keyring, pinned through PINNED_FINGERPRINTS.
 #
 #   sign-only-placed.sh rpm|deb
 set -euo pipefail
@@ -17,6 +21,45 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 gpg --batch --quiet --passphrase '' --quick-gen-key 'Release <release@example.org>' ed25519 sign 1y
 gpg --batch --quiet --passphrase '' --quick-gen-key 'Intruder <intruder@example.org>' ed25519 sign 1y
 key=$(gpg --batch --with-colons --fingerprint release@example.org | awk -F: '/^fpr:/ {print $10; exit}')
+
+intruder=$(gpg --batch --with-colons --fingerprint intruder@example.org | awk -F: '/^fpr:/ {print $10; exit}')
+pinlist=$work/pinned.txt
+export PINNED_FINGERPRINTS=$pinlist
+pin() { : > "$pinlist"; for f in "$@"; do printf '%s packages throwaway\n' "$f" >> "$pinlist"; done; }
+pin "$key"
+
+# <key file relative to the tree> <placed file>: the publish of $PUBPKG refuses each way the pin is broken, signs
+# nothing and leaves nothing placed; then passes, on a copy of the tree, once the intruder is pinned
+pin_attack() {
+    local rel=$1 placed=$2 keep=$work/keyfile.keep out
+    cp "$tree/$rel" "$keep"
+    refuses_pin() {
+        if out=$(publish "$PUBPKG" 2>&1); then fail "the publish accepted $1: $out"; fi
+        grep -q 'pinned\|pins' <<< "$out" || fail "the refusal for $1 does not name the pin: $out"
+        grep -q 'nothing was signed' <<< "$out" || fail "the refusal for $1 does not say nothing was signed: $out"
+        rm -f "$placed"
+    }
+    { cat "$keep"; gpg --batch --armor --export intruder@example.org; } > "$tree/$rel"
+    refuses_pin "a channel key file with a second, unpinned key"
+    gpg --batch --armor --export intruder@example.org > "$tree/$rel"
+    refuses_pin "a channel key file replaced by another key's"
+    cp "$keep" "$tree/$rel"
+    pin "$intruder"
+    refuses_pin "a list that does not pin the release key"
+    : > "$pinlist"
+    refuses_pin "an empty list"
+    rm -f "$pinlist"
+    refuses_pin "a missing list"
+    # the control: the same key file passes once the list pins the intruder, so only the list stood in the way
+    cp -a "$tree" "$tree.real"
+    { cat "$keep"; gpg --batch --armor --export intruder@example.org; } > "$tree/$rel"
+    pin "$key" "$intruder"
+    publish "$PUBPKG" >/dev/null 2>&1 || fail "the publish refused a key file of pinned keys"
+    rm -rf "$tree"
+    mv "$tree.real" "$tree"
+    pin "$key"
+    cmp "$keep" "$tree/$rel" || fail "the key file changed under the refused runs"
+}
 
 # <publish command...>: must refuse, naming <name>; prints nothing else
 refuses() {
@@ -46,6 +89,9 @@ rpm)
     publish pkg-a >/dev/null
     [ -n "$(sigs "$dir/pkg-a-1-1.fc44.noarch.rpm")" ] || fail "the first publish left its own package unsigned"
     repomd=$(sha256sum < "$dir/repodata/repomd.xml")
+
+    PUBPKG=pkg-b pin_attack RPM-GPG-KEY-openmixer "$dir/pkg-b-1-1.fc44.noarch.rpm"
+    [ "$(sha256sum < "$dir/repodata/repomd.xml")" = "$repomd" ] || fail "a refused run rewrote the metadata"
 
     # an unsigned package planted in the channel stays unsigned and stops the publish
     cp "$work/src-evil/evil-1-1.fc44.noarch.rpm" "$dir/"
@@ -82,6 +128,9 @@ deb)
     mkpkg evil real
     publish pkg-a-real >/dev/null
     inrelease=$(sha256sum < "$suite/InRelease")
+
+    PUBPKG=pkg-b-real pin_attack openmixer.asc "$suite/all/pkg-b_1_all.deb"
+    [ "$(sha256sum < "$suite/InRelease")" = "$inrelease" ] || fail "a refused run re-signed the index"
 
     # a package the signed index never listed
     cp "$work/src-evil-real/trixie/evil_1_all.deb" "$suite/all/"
@@ -124,4 +173,4 @@ deb)
     fail "usage: sign-only-placed.sh rpm|deb"
     ;;
 esac
-echo "sign-only-placed $1: planted packages refused, nothing signed; clean publish passes"
+echo "sign-only-placed $1: planted packages and unpinned channel keys refused, nothing signed; clean publish passes"
