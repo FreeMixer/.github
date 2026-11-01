@@ -102,4 +102,12 @@ export SERVED_KEYS_DIR=$work/committed
 pin "$real" "$other"
 out=$("$here/../packaging/openmixer-release/build.sh" rpm "$work/real.asc" "$work/out2" 2>&1 || true)
 grep -q "ships .*$real" <<< "$out" && grep -q "ships .*$other" <<< "$out" || fail "build.sh does not ship the served key and the committed key: $out"
+# the committed list read by whatever awk this machine has (Debian's is mawk, which has no {n} intervals): the
+# committed served key is pinned by the committed list, and with the packages lines stripped it is refused by name
+for f in "$here"/../.github/actions/import-gpg-key/served-keys/*.asc; do
+    out=$(env -u PINNED_FINGERPRINTS -u SERVED_KEYS_DIR "$keys" pinned "$f" 2>&1) || fail "the committed list does not pin $f under $(readlink -f "$(command -v awk)"): $out"
+    grep -v ' packages ' "$committed" > "$work/nopackages"
+    out=$(env -u SERVED_KEYS_DIR PINNED_FINGERPRINTS="$work/nopackages" "$keys" pinned "$f" 2>&1) && fail "a list without packages lines pinned $f"
+    grep -q 'no packages fingerprint' <<< "$out" || fail "a list without packages lines was not refused by name: $out"
+done
 echo "pinned-keys: the list is well formed; unpinned keys and a sabotaged list refused; pinned keys pass"
