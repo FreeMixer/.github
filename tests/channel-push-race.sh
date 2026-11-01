@@ -62,3 +62,25 @@ arm no-retry ''
 [ "$(cat "$work/no-retry/rc")" != 0 ] || fail "without a rebuild command the lost race passed"
 git -C "$work/no-retry/remote.git" ls-tree -r --name-only main | grep -q one.txt && fail "the lost push landed anyway"
 echo "ok: the lost race is repeated on the new tip, and fails without the retry"
+
+# The rebuild command is run by `bash -c` inside the job's container. A `github.action_path` expression in it is
+# expanded by the runner on the HOST (/home/runner/work/...), a path the container does not have (/__w/...): the
+# retry died with exit 127 on the tag run of openmixer-release-1-4. Every `rebuild:` handed to channel-push must
+# name its script by a run-time variable, and hold no host path and no expression that expands to one.
+python3 - "$here/../.github" <<'PY' || fail "a rebuild: input is built from the host (github.action_path or an absolute path)"
+import glob, re, sys, yaml
+bad, seen = [], 0
+for f in sorted(glob.glob(sys.argv[1] + "/**/*.yml", recursive=True)):
+    doc = yaml.safe_load(open(f))
+    steps = (doc.get("runs") or {}).get("steps", []) if isinstance(doc, dict) else []
+    for st in steps:
+        if "channel-push" in str(st.get("uses", "")) and "rebuild" in (st.get("with") or {}):
+            seen += 1
+            r = str(st["with"]["rebuild"])
+            if re.search(r"github\.(action_path|workspace)|runner\.(temp|workspace)|/home/runner|/__w/", r) or re.search(r'(^|[\s"\'=])/[A-Za-z_]', r):
+                bad.append(f"{f}: {r}")
+if seen < 2: bad.append(f"only {seen} rebuild: inputs found, want publish-rpms and publish-debs")
+for b in bad: print(b, file=sys.stderr)
+sys.exit(1 if bad else 0)
+PY
+echo "ok: no rebuild: input names a host path"

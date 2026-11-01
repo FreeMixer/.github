@@ -116,6 +116,13 @@ runs:
           test -n "$(find "$tree" -name repomd.xml.asc -print -quit)" || { echo "::error::repodata is not signed"; exit 1; }
         fi
 
+    # The rebuild command runs inside the job's container, where the action lives under a different path than
+    # the one the runner expands in a template on the host: it must name the script by this run-time variable.
+    - name: Name the action path for the rebuild
+      if: inputs.sign == 'true'
+      shell: bash
+      run: echo "PUBLISH_RPMS_ACTION=$GITHUB_ACTION_PATH" >> "$GITHUB_ENV"
+
     - uses: FreeMixer/.github/.github/actions/channel-push@v1
       if: inputs.sign == 'true'
       with:
@@ -125,7 +132,7 @@ runs:
         branch: ${{ inputs.branch }}
         tag: ${{ inputs.tag }}
         what: rpm
-        rebuild: '"${{ github.action_path }}/publish-tree.sh" build/channel/rpm "${{ inputs.rpm-dir }}" "$OPENMIXER_GPG_KEY_ID"'
+        rebuild: '"$PUBLISH_RPMS_ACTION/publish-tree.sh" build/channel/rpm "${{ inputs.rpm-dir }}" "$OPENMIXER_GPG_KEY_ID"'
 
     # After the push: a push that lost a race rebuilds and re-signs the tree, and the copies must be the bytes
     # the channel serves, not those of the first attempt.
