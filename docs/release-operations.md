@@ -87,7 +87,11 @@ install. A system upgraded to another Debian release relinks with `dpkg-reconfig
 
 The key is the file the channel serves at build time, read over HTTPS from `www.openmixer.org`, never kept in
 this repository: a key added to the channel (channel-keys.sh) reaches machines by the next release of the
-package.
+package. The channel is not the trust root for that file: `.github/actions/import-gpg-key/pinned-fingerprints.txt`
+lists the primary fingerprints OpenMixer signs with (the release key and its predecessor, and the site key that
+signs the channel commits), and every reader of a served key file (the publish actions, `channel-keys.sh`, this
+build) refuses a file holding any other primary. A new signing key is therefore a reviewed commit to that list
+first, then served by a publish.
 
 To release: bump `Release:` in the spec and add the same version on top of `debian/changelog` (build.sh
 refuses a build where the two differ), merge, and push the tag `openmixer-release-<Version>-<Release>`, for
