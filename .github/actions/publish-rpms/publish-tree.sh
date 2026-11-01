@@ -49,12 +49,12 @@ for f in "${found[@]}"; do
     fi
 done
 
-# A private rpm keystore holding the keys the channel serves and this run's key: what a package already in the
+# A private rpm keystore holding the keys the channel serves, the keys committed here and this run's key: what a package already in the
 # tree must verify against. rpmkeys takes one key per file, so the union is split by fingerprint first.
 trusted_keystore() {
     local root=$1 home fpr
     home=$(mktemp -d)
-    { if [ -s "$tree/RPM-GPG-KEY-openmixer" ]; then cat "$tree/RPM-GPG-KEY-openmixer"; fi; gpg --batch --armor --export "$key"; } |
+    { "$(dirname "$(readlink -f "$0")")/../import-gpg-key/channel-keys.sh" emit "$tree/RPM-GPG-KEY-openmixer"; gpg --batch --armor --export "$key"; } |
         GNUPGHOME=$home gpg --batch --quiet --import 2>/dev/null
     while IFS= read -r fpr; do
         GNUPGHOME=$home gpg --batch --armor --export "$fpr" > "$home/k.asc"

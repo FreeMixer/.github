@@ -25,6 +25,8 @@ key=$(gpg --batch --with-colons --fingerprint release@example.org | awk -F: '/^f
 intruder=$(gpg --batch --with-colons --fingerprint intruder@example.org | awk -F: '/^fpr:/ {print $10; exit}')
 pinlist=$work/pinned.txt
 export PINNED_FINGERPRINTS=$pinlist
+mkdir -p "$work/no-committed"
+export SERVED_KEYS_DIR=$work/no-committed # the committed keys are pinned in the real list, not in this throwaway one
 pin() { : > "$pinlist"; for f in "$@"; do printf '%s packages throwaway\n' "$f" >> "$pinlist"; done; }
 pin "$key"
 
