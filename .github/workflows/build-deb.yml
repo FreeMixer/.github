@@ -161,7 +161,7 @@ jobs:
   build:
     name: Build (${{ matrix.suite }}, ${{ matrix.arch }})
     needs: preflight
-    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || inputs.runner }}
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || (inputs.runner != 'ubuntu-latest' && inputs.runner) || vars.OMX_RUNNER || 'ubuntu-latest' }}
     # a library whose package build runs its whole test suite (omx-dsp: the oracles at nine rates) takes 31 to 45
     # minutes on a hosted runner; 45 cancelled two omx-dsp releases (v0.23.0, v0.24.0), so the bound is 90
     timeout-minutes: 90
@@ -356,7 +356,7 @@ jobs:
     name: Install check (${{ matrix.suite }}, ${{ matrix.arch }})
     needs: [publish, release]
     if: ${{ !cancelled() && needs.publish.result == 'success' && inputs.publish && inputs.verify-install && (inputs.source-ref != '' || github.ref_type == 'tag') }}
-    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || inputs.runner }}
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || (inputs.runner != 'ubuntu-latest' && inputs.runner) || vars.OMX_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 30
     container:
       image: debian:${{ matrix.suite }}
