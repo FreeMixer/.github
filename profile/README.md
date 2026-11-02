@@ -49,7 +49,7 @@ Debian and Raspberry Pi OS (bookworm, trixie): `curl -fsSLO https://www.openmixe
 
 [Theorem's OSS Verify](https://github.com/theorem-labs/oss-verify) lists these projects of ours in its `projects/`:
 [libdiginet](https://github.com/FreeMixer/libdiginet), [mod-host](https://github.com/FreeMixer/mod-host),
-[omx-clap-core](https://github.com/FreeMixer/omx-clap-core), [plugin-hostd](https://github.com/FreeMixer/plugin-hostd),
+[omx-clap-core](https://github.com/FreeMixer/omx-clap-core), [omx-dsp](https://github.com/FreeMixer/omx-dsp), [plugin-hostd](https://github.com/FreeMixer/plugin-hostd),
 [libreac](https://github.com/FreeREAC/libreac) and [reac-pw](https://github.com/FreeREAC/reac-pw).
 Each ships fuzz targets written to its contract. The other pieces are not listed there.
 
