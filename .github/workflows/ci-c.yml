@@ -1,0 +1,67 @@
+name: ci-c
+# A C library's checks in a distribution container: its build tools, optionally the OpenMixer channel and what it
+# installs from it, then its commands.
+#
+#   jobs:
+#     test:
+#       uses: FreeMixer/.github/.github/workflows/ci-c.yml@v1
+#       with:
+#         tools: dnf install -y --setopt=install_weak_deps=False gcc make git
+#         commands: make test
+on:
+  workflow_call:
+    inputs:
+      commands:
+        description: the checks, one shell line each, run with bash -euo pipefail
+        type: string
+        required: true
+      tools:
+        description: the command that installs the build tools in the container
+        type: string
+        required: true
+      image:
+        type: string
+        default: fedora:44
+      channel:
+        description: add the OpenMixer channel before channel-packages
+        type: boolean
+        default: false
+      channel-packages:
+        description: the command that installs what the build takes from the channel
+        type: string
+        default: ''
+      runs-on:
+        type: string
+        default: ubuntu-latest
+      timeout-minutes:
+        type: number
+        default: 30
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash --noprofile --norc -euo pipefail {0}
+
+jobs:
+  test:
+    name: build and test (${{ inputs.image }})
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    container:
+      image: ${{ inputs.image }}
+    steps:
+      - name: The build tools
+        shell: sh
+        run: ${{ inputs.tools }}
+      - uses: actions/checkout@v4
+      - name: The checkout is a git directory this job may read
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - if: inputs.channel
+        uses: FreeMixer/.github/.github/actions/add-openmixer@v1
+      - if: inputs.channel-packages != ''
+        name: What the build takes from the channel
+        run: ${{ inputs.channel-packages }}
+      - name: The checks
+        run: ${{ inputs.commands }}
