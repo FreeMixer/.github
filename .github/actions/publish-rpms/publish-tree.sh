@@ -7,7 +7,7 @@
 #
 # A package the tree already holds under the same file name is kept whatever the new build's bytes: a
 # published NEVRA is immutable and a rebuild that wants in bumps its Release. The tree is shared with
-# other projects, so nothing already in it is ever removed.
+# other projects: nothing in it is removed except the old versions the prune below drops.
 #
 # ONLY WHAT THIS RUN PLACED IS SIGNED. The tree is pulled from the channel, and anyone who can write to the
 # channel can leave a package there; signing every unsigned file would turn a channel write into a package
@@ -48,6 +48,24 @@ for f in "${found[@]}"; do
         echo "placed $(basename "$f") in fedora/$releasever/$archdir"
     fi
 done
+
+# Only the newest OMX_CHANNEL_KEEP versions of each package stay in a directory (default 2: the release and the
+# one before it, to go back to). Older ones leave the channel and stay attached to their GitHub release. A
+# package this run placed is never removed, even when it is older than what the directory holds.
+keep=${OMX_CHANNEL_KEEP:-2}
+case $keep in ''|*[!0-9]*|0) echo "OMX_CHANNEL_KEEP must be a positive number, not '$keep'" >&2; exit 1 ;; esac
+declare -A fresh=()
+for f in "${placed[@]}"; do fresh[$f]=1; done
+while IFS= read -r d; do
+    for f in "$d"/*.rpm; do
+        rpm -qp --qf "%{NAME}\t%{EPOCHNUM}:%{VERSION}-%{RELEASE}\t$f\n" "$f"
+    done | sort -t $'\t' -k1,1 -k2,2Vr | awk -F'\t' -v k="$keep" '++n[$1] > k {print $3}' |
+        while IFS= read -r old; do
+            [ -z "${fresh[$old]:-}" ] || continue
+            rm -f "$old"
+            echo "pruned $(basename "$old") from ${d#"$tree"/}"
+        done
+done < <(find "$tree" -name '*.rpm' -printf '%h\n' | sort -u)
 
 # A private rpm keystore holding the keys the channel serves, the keys committed here and this run's key: what a package already in the
 # tree must verify against. rpmkeys takes one key per file, so the union is split by fingerprint first.

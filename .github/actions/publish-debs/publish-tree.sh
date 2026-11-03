@@ -7,7 +7,7 @@
 # <deb dir> holds <suite>/<package>.deb, the suite being the Debian release the package was built on. A
 # package the tree already holds under the same file name is kept whatever the new build's bytes: a
 # published version is immutable and a rebuild that wants in bumps its version. The tree is shared with
-# other projects, so nothing already in it is ever removed. REQUIRES names packages that must be in the tree
+# other projects: nothing in it is removed except the old versions the prune drops. REQUIRES names packages that must be in the tree
 # for every suite and architecture this run places a package into, so a package is never published without
 # a dependency of it that no repository serves.
 #
@@ -126,6 +126,22 @@ if [ -n "$key" ]; then
     rm -f "$keyring"
     [ "$refused" = 0 ] || { echo "the channel holds packages this run did not place and cannot vouch for: nothing was signed" >&2; exit 1; }
 fi
+
+# Only the newest OMX_CHANNEL_KEEP versions of each package stay in a suite's architecture (default 2: the
+# release and the one before it, to go back to). Older ones leave the channel and stay attached to their GitHub
+# release. A package this run placed is never removed, even when it is older than what the directory holds.
+keep=${OMX_CHANNEL_KEEP:-2}
+case $keep in ''|*[!0-9]*|0) echo "OMX_CHANNEL_KEEP must be a positive number, not '$keep'" >&2; exit 1 ;; esac
+while IFS= read -r d; do
+    for f in "$d"/*.deb; do
+        printf '%s\t%s\t%s\n' "$(dpkg-deb -f "$f" Package)" "$(dpkg-deb -f "$f" Version)" "$f"
+    done | sort -t $'\t' -k1,1 -k2,2Vr | awk -F'\t' -v k="$keep" '++n[$1] > k {print $3}' |
+        while IFS= read -r old; do
+            [ -z "${mine[$old]:-}" ] || continue
+            rm -f "$old"
+            echo "pruned $(basename "$old") from ${d#"$tree"/}"
+        done
+done < <(find "$tree/debian" -name '*.deb' -printf '%h\n' | sort -u)
 
 # every package of the tree, so a release published before the Changelogs field existed gets its file too
 while IFS= read -r f; do place_changelog "$f"; done < <(find "$tree/debian" -name '*.deb' | sort)
