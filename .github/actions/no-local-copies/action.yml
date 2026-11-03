@@ -1,0 +1,13 @@
+name: no-local-copies
+description: Fail when the repository keeps a copy of a shared check instead of calling FreeMixer/.github's
+
+# The check is proven first: each kind of copy, planted in a scratch tree, must go red, and the check without its
+# rules must not. Then the caller's checkout is read. The caller has checked the repository out.
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        "$GITHUB_ACTION_PATH/check.sh" --self-test
+        "$GITHUB_ACTION_PATH/check.sh" "$GITHUB_WORKSPACE"

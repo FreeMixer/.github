@@ -1,0 +1,80 @@
+name: release-npm
+# A package's npm publish with trusted publishing: the tag names the version, the caller's proof runs, then npm
+# publishes with provenance. A run that is not on a tag is a dry run (npm publish --dry-run).
+#
+#   on: {push: {tags: ['v*']}, workflow_dispatch: {}}
+#   jobs:
+#     publish:
+#       uses: FreeMixer/.github/.github/workflows/release-npm.yml@v1
+#       with:
+#         prove: npm test
+#       permissions: {contents: read, id-token: write}
+on:
+  workflow_call:
+    inputs:
+      prove:
+        description: what must pass before the publish, one shell line each, run with bash -euo pipefail
+        type: string
+        required: true
+      node-version:
+        type: string
+        default: '22'
+      package-manager:
+        type: string
+        default: npm
+      pnpm-version:
+        type: string
+        default: '10.33.0'
+      working-directory:
+        description: the package's directory
+        type: string
+        default: .
+      setup-action:
+        description: run the caller's ./.github/actions/ci-setup after the install
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash --noprofile --norc -euo pipefail {0}
+
+jobs:
+  publish:
+    name: npm publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: FreeMixer/.github/.github/actions/npm-publish-setup@v1
+        with:
+          node-version: ${{ inputs.node-version }}
+      - uses: FreeMixer/.github/.github/actions/tag-names-version@v1
+        with:
+          version-command: node -p "require('./${{ inputs.working-directory }}/package.json').version"
+      - name: Install
+        working-directory: ${{ inputs.working-directory }}
+        env:
+          PM: ${{ inputs.package-manager }}
+          PNPM_VERSION: ${{ inputs.pnpm-version }}
+        run: |
+          case "$PM" in
+            npm) npm ci ;;
+            pnpm) npm install -g "pnpm@$PNPM_VERSION"; pnpm install --frozen-lockfile ;;
+            *) echo "release-npm: package-manager is npm or pnpm, not $PM" >&2; exit 2 ;;
+          esac
+      - if: inputs.setup-action
+        uses: ./.github/actions/ci-setup
+      - name: The proof
+        working-directory: ${{ inputs.working-directory }}
+        run: ${{ inputs.prove }}
+      - name: Publish
+        working-directory: ${{ inputs.working-directory }}
+        env:
+          DRY: ${{ github.ref_type != 'tag' && '--dry-run' || '' }}
+        run: npm publish --provenance --access public $DRY

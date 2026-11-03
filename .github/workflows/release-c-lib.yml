@@ -1,0 +1,90 @@
+name: release-c-lib
+# A C library's release: its RPMs, then its DEBs, through build-rpm.yml and build-deb.yml. A tag push publishes; any
+# other run is a dry run (publish false), and a pull request's dry run passes arm false.
+#
+#   on: {push: {tags: ['v*']}, workflow_dispatch: {}}
+#   jobs:
+#     release:
+#       uses: FreeMixer/.github/.github/workflows/release-c-lib.yml@v1
+#       with:
+#         package-name: omx-dsp
+#         rpm-binary-names: omx-dsp-devel
+#         deb-binary-names: libomxdsp-dev
+#       secrets: inherit
+on:
+  workflow_call:
+    inputs:
+      package-name:
+        type: string
+        required: true
+      rpm-binary-names:
+        description: the RPMs the spec builds; empty is the package name
+        type: string
+        default: ''
+      deb-binary-names:
+        description: the DEBs debian/control builds; empty is the package name
+        type: string
+        default: ''
+      publish:
+        type: boolean
+        default: false
+      arm:
+        description: build aarch64/arm64 too
+        type: boolean
+        default: true
+      needs-mod-host:
+        type: boolean
+        default: false
+      channel-deps:
+        type: boolean
+        default: true
+      deb-dependencies:
+        type: string
+        default: ''
+      deb-requires:
+        type: string
+        default: ''
+      runner:
+        type: string
+        default: ubuntu-latest
+    secrets:
+      DISPATCH_TOKEN:
+        required: false
+      OPENMIXER_PACKAGES_SIGNING_KEY:
+        required: false
+      PAGES_TOKEN:
+        required: false
+      SITE_GPG_KEY:
+        required: false
+
+permissions:
+  contents: write
+  issues: write
+  actions: read
+
+jobs:
+  rpm:
+    uses: FreeMixer/.github/.github/workflows/build-rpm.yml@v1
+    with:
+      package-name: ${{ inputs.package-name }}
+      binary-names: ${{ inputs.rpm-binary-names || inputs.package-name }}
+      publish: ${{ github.event_name == 'push' || inputs.publish }}
+      needs-mod-host: ${{ inputs.needs-mod-host }}
+      channel-deps: ${{ inputs.channel-deps }}
+      runner: ${{ inputs.runner }}
+      arch-matrix: ${{ inputs.arm && '["x86_64", "aarch64"]' || '["x86_64"]' }}
+    secrets: inherit
+  deb:
+    needs: rpm
+    if: ${{ !cancelled() && needs.rpm.result == 'success' }}
+    uses: FreeMixer/.github/.github/workflows/build-deb.yml@v1
+    with:
+      package-name: ${{ inputs.package-name }}
+      binary-names: ${{ inputs.deb-binary-names || inputs.package-name }}
+      publish: ${{ github.event_name == 'push' || inputs.publish }}
+      dependencies: ${{ inputs.deb-dependencies }}
+      requires: ${{ inputs.deb-requires }}
+      channel-deps: ${{ inputs.channel-deps }}
+      runner: ${{ inputs.runner }}
+      arch-matrix: ${{ inputs.arm && '["amd64", "arm64"]' || '["amd64"]' }}
+    secrets: inherit
