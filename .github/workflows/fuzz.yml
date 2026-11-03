@@ -31,6 +31,7 @@ on:
         type: string
         default: ''
       runs-on:
+        description: the runner; a pull request from a fork always runs on ubuntu-latest, whatever is passed here
         type: string
         default: ubuntu-latest
       timeout-minutes:
@@ -47,7 +48,7 @@ defaults:
 jobs:
   fuzz:
     name: fuzz
-    runs-on: ${{ inputs.runs-on }}
+    runs-on: ${{ startsWith(github.event_name, 'pull_request') && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || inputs.runs-on }}
     timeout-minutes: ${{ inputs.timeout-minutes }}
     container:
       image: ${{ inputs.image }}
