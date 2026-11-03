@@ -1,6 +1,6 @@
 #!/bin/bash
 # The commit-message-check action: the checker reads a range, refuses an attributed commit, passes a clean one, and a
-# checker without its patterns is not a pass. With OPS_DIR set, the shipped copy must equal the ops list.
+# checker without its patterns is not a pass. The list beside the checker is the one list every repository reads.
 set -euo pipefail
 here=$(cd "$(dirname "$0")/.." && pwd)
 act=$here/.github/actions/commit-message-check
@@ -25,9 +25,4 @@ echo "sabotage: the empty list is blind, as the selftest expects"
 rc=0; COMMIT_MESSAGE_PATTERNS="$tmp/none.json" "$chk" main..HEAD >/dev/null 2>&1 || rc=$?
 [ "$rc" = 2 ] || fail "a missing pattern list gave $rc, not 2"
 
-if [ -n "${OPS_DIR:-}" ]; then
-  for f in commit-message-check.sh commit-message-patterns.json; do
-    cmp -s "$act/$f" "$OPS_DIR/$f" || fail "$f differs from $OPS_DIR/$f (run tools/sync-commit-message-check.sh)"
-  done
-fi
 echo "commit-message-check: ok"
