@@ -3,8 +3,8 @@ description: Fail when a commit of the pull request carries an attribution line
 
 # A commit message is published like a file. The commits between the base branch and the checked-out head are read
 # (what is already on the base is not); the checker is run against its own fixtures first and must go blind when its
-# patterns are removed. The patterns are commit-message-patterns.json beside the script, generated from the ops list by
-# tools/sync-commit-message-check.sh; tests/commit-message-check.sh keeps the copy honest.
+# patterns are removed. The patterns are commit-message-patterns.json beside the script: the one list, edited here, which
+# every repository's doors and commit-msg hook read from a checkout of this repository.
 # The caller checks out with fetch-depth: 0 and the pull request head.
 
 inputs:
