@@ -13,6 +13,7 @@ SIGNS=(
   '"markers"[[:space:]]*:'
 )
 NAMES='(^|/)(commit-message-check\.sh|commit-message-patterns\.json|private-refs-check\.sh|private-refs-allow\.txt)$'
+CODE='\.(sh|bash|py|mjs|cjs|js|ts|json|pl|rb)$'
 
 check() { # <root>
   local root=$1 bad=0 files f s
@@ -21,9 +22,13 @@ check() { # <root>
   while IFS= read -r f; do
     [[ $f =~ $NAMES ]] && { echo "no-local-copies: $f is a copy of a shared check" >&2; bad=1; }
   done <<<"$files"
+  # by content: a script or data file, by its extension or a #! first line, is code; a log or a note that quotes one is not
   for s in "${SIGNS[@]}"; do
     while IFS= read -r f; do
-      [ -n "$f" ] && [ "$f" != .githooks/commit-msg ] && { echo "no-local-copies: $f carries a shared check ($s)" >&2; bad=1; }
+      [ -n "$f" ] && [ "$f" != .githooks/commit-msg ] || continue
+      if [[ $f =~ $CODE ]] || head -c2 "$root/$f" 2>/dev/null | grep -q '^#!'; then
+        echo "no-local-copies: $f carries a shared check ($s)" >&2; bad=1
+      fi
     done < <(git -c safe.directory="$root" -C "$root" grep -lIE -e "$s" -- . || true)
   done
   if [ -e "$root/.githooks/commit-msg" ] && ! cmp -s "$root/.githooks/commit-msg" "$STUB"; then
@@ -54,6 +59,10 @@ if [ "${1:-}" = --self-test ]; then
   plant "a renamed checker is red by its content" tools/msg.sh "# commit-message-check.sh: fail when a commit message carries a line"
   plant "a renamed pattern list is red by its content" tools/p.json '{"markers": []}'
   plant "a renamed private-refs engine is red by its content" tools/refs.sh "# private-refs-check.sh: a public repository's files"
+  plant "a script with no extension is red by its #! line" tools/check "#!/bin/sh
+# commit-message-check.sh: fail when a commit message carries a line"
+  rm -rf "$t/r"; git init -q "$t/r"; mkdir -p "$t/r/logs"; printf '%s\n' 'commit-message-check.sh: fail when a commit message' > "$t/r/logs/run.jsonl"; git -C "$t/r" add -A
+  if check "$t/r" >/dev/null 2>&1; then echo "ok   a log quoting the checker is green"; else echo "FAIL a log quoting the checker is red"; fail=1; fi
   plant "a hook that is not the stub is red" .githooks/commit-msg 'exec tools/commit-message-check.sh --msg-file "$1"'
   # sabotage: with the name and content rules gone, a planted copy passes, so the arms above are what catch it
   sed -e "s/^NAMES=.*/NAMES='^\$'/" -e "s/^  '.*'\$/  '^\$NEVER'/" "${BASH_SOURCE[0]}" > "$t/sab.sh"
