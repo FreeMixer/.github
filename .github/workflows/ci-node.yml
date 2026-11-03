@@ -1,0 +1,76 @@
+name: ci-node
+# A Node package's checks: Node, its install, an optional setup action of the caller's, then its commands.
+#
+#   jobs:
+#     test:
+#       uses: FreeMixer/.github/.github/workflows/ci-node.yml@v1
+#       with:
+#         commands: |
+#           npm run lint
+#           npm test
+on:
+  workflow_call:
+    inputs:
+      commands:
+        description: the checks, one shell line each, run with bash -euo pipefail
+        type: string
+        required: true
+      node-version:
+        type: string
+        default: '22'
+      package-manager:
+        description: npm (npm ci) or pnpm (pnpm install --frozen-lockfile)
+        type: string
+        default: npm
+      pnpm-version:
+        type: string
+        default: '10.33.0'
+      working-directory:
+        type: string
+        default: .
+      setup-action:
+        description: run the caller's ./.github/actions/ci-setup after the install (native tools, scanners)
+        type: boolean
+        default: false
+      runs-on:
+        type: string
+        default: ubuntu-latest
+      timeout-minutes:
+        type: number
+        default: 30
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash --noprofile --norc -euo pipefail {0}
+
+jobs:
+  test:
+    name: build and test
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+      - name: Install
+        working-directory: ${{ inputs.working-directory }}
+        env:
+          PM: ${{ inputs.package-manager }}
+          PNPM_VERSION: ${{ inputs.pnpm-version }}
+        run: |
+          case "$PM" in
+            npm) npm ci ;;
+            pnpm) npm install -g "pnpm@$PNPM_VERSION"; pnpm install --frozen-lockfile ;;
+            *) echo "ci-node: package-manager is npm or pnpm, not $PM" >&2; exit 2 ;;
+          esac
+      - if: inputs.setup-action
+        uses: ./.github/actions/ci-setup
+      - name: The checks
+        working-directory: ${{ inputs.working-directory }}
+        run: ${{ inputs.commands }}
