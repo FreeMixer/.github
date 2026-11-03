@@ -6,11 +6,14 @@
 #   deb: each added .deb is listed in the live Packages index of its suite
 #   rpm: each added .rpm is served, and the live repodata/repomd.xml revision is at least the committed one
 # With nothing served after REDEPLOY_AFTER seconds it asks Pages for one more build of the whole tree (the
-# latest commit, which carries this one); after LIVE_TIMEOUT seconds it fails, naming what the site still lacks.
-# Env: CURL (default curl), GH (default gh), LIVE_TIMEOUT (900), REDEPLOY_AFTER (300), POLL (30).
+# latest commit, which carries this one), by curl on the REST API with GH_TOKEN (or GITHUB_TOKEN); with no token
+# it skips the request with a warning and keeps waiting, and a refused request is only a warning. After
+# LIVE_TIMEOUT seconds it fails, naming what the site still lacks.
+# Env: CURL (default curl), GH_TOKEN or GITHUB_TOKEN, GITHUB_API_URL (default https://api.github.com),
+# LIVE_TIMEOUT (900), REDEPLOY_AFTER (300), POLL (30).
 set -uo pipefail
 dir=$1 what=$2 site=${3%/} repo=$4
-CURL=${CURL:-curl} GH=${GH:-gh}
+CURL=${CURL:-curl} api=${GITHUB_API_URL:-https://api.github.com}
 LIVE_TIMEOUT=${LIVE_TIMEOUT:-900} REDEPLOY_AFTER=${REDEPLOY_AFTER:-300} POLL=${POLL:-30}
 
 added=$(git -C "$dir" diff --name-only --diff-filter=A HEAD~1 HEAD -- "$what" | grep -E '\.(deb|rpm)$' | grep -v '\.src\.rpm$' || true)
@@ -37,6 +40,19 @@ missing() { # prints what the live site does not serve yet
     done
 }
 
+request_build() { # asks Pages to build the channel again; never fails the check
+    local token=${GH_TOKEN:-${GITHUB_TOKEN:-}}
+    if [ -z "$token" ]; then
+        echo "::warning::no token (GH_TOKEN or GITHUB_TOKEN) -- not asking Pages for another build; still waiting"
+        return 0
+    fi
+    # the token goes in on stdin, not on the command line
+    printf 'Authorization: Bearer %s\nAccept: application/vnd.github+json\nX-GitHub-Api-Version: 2022-11-28\n' "$token" |
+        $CURL -fsS -o /dev/null -H @- -X POST "$api/repos/$repo/pages/builds" ||
+        echo "::warning::the Pages build request was refused"
+    return 0
+}
+
 start=$SECONDS redeployed=0
 while :; do
     lack=$(missing)
@@ -47,7 +63,7 @@ while :; do
     waited=$((SECONDS - start))
     if [ "$redeployed" = 0 ] && [ "$waited" -ge "$REDEPLOY_AFTER" ]; then
         echo "::warning::$site still lacks: $(tr '\n' ' ' <<<"$lack")-- asking Pages to build the channel again"
-        $GH api -X POST "repos/$repo/pages/builds" >/dev/null || echo "::warning::the Pages build request was refused"
+        request_build
         redeployed=1
     fi
     if [ "$waited" -ge "$LIVE_TIMEOUT" ]; then
