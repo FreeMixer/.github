@@ -25,4 +25,9 @@ echo "sabotage: the empty list is blind, as the selftest expects"
 rc=0; COMMIT_MESSAGE_PATTERNS="$tmp/none.json" "$chk" main..HEAD >/dev/null 2>&1 || rc=$?
 [ "$rc" = 2 ] || fail "a missing pattern list gave $rc, not 2"
 
+# the stub every repository copies into .githooks/commit-msg carries the licence lines a repository's own SPDX check
+# reads in a file's first lines (2026-11-03: omx-panel's make spdx went red on the copy)
+head -4 "$act/commit-msg" | grep -q '^# SPDX-License-Identifier: GPL-3.0-or-later$' || fail "the stub has no SPDX line"
+head -4 "$act/commit-msg" | grep -q '^# Copyright (C) ' || fail "the stub has no copyright line"
+
 echo "commit-message-check: ok"
