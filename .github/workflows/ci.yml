@@ -115,6 +115,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: tests/updateinfo.sh
       - run: tests/srpm-publish.sh
+      - run: tests/channel-prune-rpm.sh
 
   deb-changelog:
     name: apt changelog from the published tree
@@ -126,6 +127,7 @@ jobs:
       - run: apt-get update -qq && apt-get install -y --no-install-recommends apt-utils dpkg-dev debhelper build-essential python3 apt ca-certificates
       - uses: actions/checkout@v4
       - run: tests/deb-changelog.sh
+      - run: tests/channel-prune-deb.sh
 
   channel-push-race:
     name: channel push survives a lost race

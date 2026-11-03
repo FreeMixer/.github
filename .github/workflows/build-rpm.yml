@@ -58,10 +58,10 @@ on:
         type: string
         default: '["x86_64", "aarch64"]'
         description: 'JSON array of architectures, each built natively'
-      fedora-version:
+      fedora-versions:
         type: string
-        default: '44'
-        description: 'Fedora release of the build containers'
+        default: '["44", "45"]'
+        description: 'JSON array of the Fedora releases to build for, each in a container of its own; the first one runs the publish'
       needs-mod-host:
         type: boolean
         default: true
@@ -154,15 +154,16 @@ jobs:
           pages-token: ${{ secrets.PAGES_TOKEN }}
 
   build:
-    name: Build (fc${{ inputs.fedora-version }}, ${{ matrix.arch }})
+    name: Build (fc${{ matrix.fedora }}, ${{ matrix.arch }})
     needs: preflight
     runs-on: ${{ matrix.arch == 'aarch64' && 'ubuntu-24.04-arm' || startsWith(github.event_name, 'pull_request') && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || (inputs.runner != 'ubuntu-latest' && inputs.runner) || vars.OMX_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 120
     container:
-      image: fedora:${{ inputs.fedora-version }}
+      image: fedora:${{ matrix.fedora }}
     strategy:
       fail-fast: false
       matrix:
+        fedora: ${{ fromJSON(inputs.fedora-versions) }}
         arch: ${{ fromJSON(inputs.arch-matrix) }}
     env:
       RELEASE_TAG: ${{ inputs.source-ref || (github.ref_type == 'tag' && github.ref_name || '') }}
@@ -231,8 +232,9 @@ jobs:
           for pkg in $(rpmspec -q --qf '%{name}\n' packaging/*.spec | grep -vE -- '-debug(info|source)$' | sort -u); do
             cp rpms/"$pkg"-[0-9]*.rpm release/ 2>/dev/null || true
           done
-          # the source and noarch packages come out of every job under the same file name with different
-          # bytes; merge-multiple would write them over each other, so only the first architecture ships them
+          # the source and noarch packages come out of every job of one Fedora release under the same file name
+          # with different bytes; merge-multiple would write them over each other, so only the first architecture
+          # ships them (each release's dist tag, .fc44 or .fc45, keeps the releases apart)
           if [ "$ARCH" != "$FIRST_ARCH" ]; then
             rm -f release/*.src.rpm release/*.noarch.rpm
           fi
@@ -258,7 +260,7 @@ jobs:
       # mod-host and its protocol library are built to satisfy BuildRequires and are not part of the release
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.package-name }}-rpms-${{ matrix.arch }}
+          name: ${{ inputs.package-name }}-rpms-fc${{ matrix.fedora }}-${{ matrix.arch }}
           path: release/*.rpm
           if-no-files-found: ${{ matrix.arch == fromJSON(inputs.arch-matrix)[0] && 'error' || 'ignore' }}
           retention-days: 30
@@ -269,7 +271,7 @@ jobs:
     runs-on: ${{ startsWith(github.event_name, 'pull_request') && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || inputs.runner }}
     timeout-minutes: 30
     container:
-      image: fedora:${{ inputs.fedora-version }}
+      image: fedora:${{ fromJSON(inputs.fedora-versions)[0] }}
     # The tree of the target repository is shared by every package and race-protected only by git's
     # refusal of a non-fast-forward push; one group per target serialises this organisation's runs.
     # A dry run (publish false) pushes nothing, so it gets a group of its own: sharing the live group made
@@ -282,7 +284,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: ${{ inputs.package-name }}-rpms-*
+          pattern: ${{ inputs.package-name }}-rpms-fc*
           merge-multiple: true
           path: collected
 
@@ -358,16 +360,17 @@ jobs:
   # The last proof: the version the tag names installs from the channel, in a fedora that holds nothing else.
   # Pages serves the push a little late, so the check retries before it calls the release broken.
   verify:
-    name: Install check (fc${{ inputs.fedora-version }}, ${{ matrix.arch }})
+    name: Install check (fc${{ matrix.fedora }}, ${{ matrix.arch }})
     needs: [publish, release]
     if: ${{ !cancelled() && needs.publish.result == 'success' && inputs.publish && inputs.verify-install && (inputs.source-ref != '' || github.ref_type == 'tag') }}
     runs-on: ${{ matrix.arch == 'aarch64' && 'ubuntu-24.04-arm' || startsWith(github.event_name, 'pull_request') && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || (inputs.runner != 'ubuntu-latest' && inputs.runner) || vars.OMX_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 30
     container:
-      image: fedora:${{ inputs.fedora-version }}
+      image: fedora:${{ matrix.fedora }}
     strategy:
       fail-fast: false
       matrix:
+        fedora: ${{ fromJSON(inputs.fedora-versions) }}
         arch: ${{ fromJSON(inputs.arch-matrix) }}
     steps:
       - uses: FreeMixer/.github/.github/actions/add-openmixer@v1

@@ -298,7 +298,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: ['fedora:44', 'debian:bookworm', 'debian:trixie']
+        image: ['fedora:44', 'fedora:45', 'debian:bookworm', 'debian:trixie']
     env:
       EVR: ${{ needs.preflight.outputs.evr }}
     steps:
