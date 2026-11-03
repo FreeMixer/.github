@@ -26,7 +26,8 @@ A machine adds the channel by installing `openmixer-release` (`packaging/openmix
 
 The checks and builds every repository runs are reusable workflows here, and a repository keeps no copy of
 them: `public-sources-check.yml` (commit messages, private references, and no local copy of either, the
-commit-msg hook being `.github/actions/commit-message-check/commit-msg` byte for byte), `ci-node.yml`, `ci-c.yml`,
+commit-msg hook being `.github/actions/commit-message-check/commit-msg` byte for byte; and, in a public repository,
+no dated document, no dated folder and no folder of evidence or notes), `ci-node.yml`, `ci-c.yml`,
 `fuzz.yml`, `release-c-lib.yml` (RPMs then DEBs) and `release-npm.yml` (trusted publishing). Each documents its
 inputs at its top. A repository whose every tracked file carries its licence runs `.github/actions/spdx-check`: the
 rule is the format of the file, a format with no comment syntax carries no header, and there is no list of files.

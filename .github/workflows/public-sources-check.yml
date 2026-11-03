@@ -4,7 +4,9 @@ name: public-sources-check
 # The checks every FreeMixer repository runs on what it publishes, from this repository and nowhere else:
 #   - its pull request's own commits carry no attribution line (commit-message-check);
 #   - no tracked file points into a private repository (private-refs-check);
-#   - it keeps no copy of these checks and its commit-msg hook is the shared stub (no-local-copies).
+#   - it keeps no copy of these checks and its commit-msg hook is the shared stub (no-local-copies);
+#   - a public repository keeps no dated document, no dated folder and no folder of evidence or notes
+#     (public-layout-check): the record of how work went is kept in the project's records.
 # Each check proves itself on planted inputs before it reads the tree.
 #
 #   jobs:
@@ -14,7 +16,7 @@ on:
   workflow_call:
     inputs:
       private-refs:
-        description: run private-refs-check (a private repository passes false)
+        description: the checks of a public repository, private-refs-check and public-layout-check (a private repository passes false)
         type: boolean
         default: true
 
@@ -44,6 +46,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: FreeMixer/.github/.github/actions/private-refs-check@v1
+
+  public-layout:
+    name: no dated document, no dated folder, no evidence or notes folder
+    if: inputs.private-refs
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: FreeMixer/.github/.github/actions/public-layout-check@v1
 
   no-local-copies:
     name: the shared checks are not copied here
