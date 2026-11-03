@@ -31,7 +31,7 @@ on:
       runner:
         type: string
         default: 'ubuntu-latest'
-        description: 'Runner label for the x86 jobs (a private repo passes its own runners, e.g. arc-freemixer; arm builds keep ubuntu-24.04-arm)'
+        description: 'Runner label for the x86 jobs (a private repo passes its own runners, e.g. arc-freemixer; arm builds keep ubuntu-24.04-arm; a pull request from a fork always runs on GitHub-hosted runners)'
       package-name:
         required: true
         type: string
@@ -130,7 +130,7 @@ defaults:
 jobs:
   preflight:
     name: Check the release can publish
-    runs-on: ${{ inputs.runner }}
+    runs-on: ${{ startsWith(github.event_name, 'pull_request') && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || inputs.runner }}
     timeout-minutes: 5
     steps:
       # git history is the changelog: nothing here reads a CHANGELOG.md
@@ -161,7 +161,7 @@ jobs:
   build:
     name: Build (${{ matrix.suite }}, ${{ matrix.arch }})
     needs: preflight
-    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || (inputs.runner != 'ubuntu-latest' && inputs.runner) || github.event.pull_request.head.repo.fork && 'ubuntu-latest' || vars.OMX_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || startsWith(github.event_name, 'pull_request') && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || (inputs.runner != 'ubuntu-latest' && inputs.runner) || vars.OMX_RUNNER || 'ubuntu-latest' }}
     # a library whose package build runs its whole test suite (omx-dsp: the oracles at nine rates) takes 31 to 45
     # minutes on a hosted runner; 45 cancelled two omx-dsp releases (v0.23.0, v0.24.0), so the bound is 90
     timeout-minutes: 90
@@ -244,7 +244,7 @@ jobs:
   publish:
     name: Sign and publish
     needs: build
-    runs-on: ${{ inputs.runner }}
+    runs-on: ${{ startsWith(github.event_name, 'pull_request') && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || inputs.runner }}
     timeout-minutes: 30
     container:
       image: debian:trixie
@@ -304,7 +304,7 @@ jobs:
     name: GitHub release
     needs: publish
     if: inputs.publish && inputs.create-github-release && github.ref_type == 'tag'
-    runs-on: ${{ inputs.runner }}
+    runs-on: ${{ startsWith(github.event_name, 'pull_request') && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || inputs.runner }}
     timeout-minutes: 10
     permissions:
       contents: write
@@ -356,7 +356,7 @@ jobs:
     name: Install check (${{ matrix.suite }}, ${{ matrix.arch }})
     needs: [publish, release]
     if: ${{ !cancelled() && needs.publish.result == 'success' && inputs.publish && inputs.verify-install && (inputs.source-ref != '' || github.ref_type == 'tag') }}
-    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || (inputs.runner != 'ubuntu-latest' && inputs.runner) || github.event.pull_request.head.repo.fork && 'ubuntu-latest' || vars.OMX_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || startsWith(github.event_name, 'pull_request') && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || (inputs.runner != 'ubuntu-latest' && inputs.runner) || vars.OMX_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 30
     container:
       image: debian:${{ matrix.suite }}
@@ -403,7 +403,7 @@ jobs:
     name: Report a failed release
     needs: [preflight, build, publish, release, verify]
     if: ${{ always() && inputs.publish && (inputs.source-ref != '' || github.ref_type == 'tag') && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
-    runs-on: ${{ inputs.runner }}
+    runs-on: ${{ startsWith(github.event_name, 'pull_request') && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || inputs.runner }}
     timeout-minutes: 5
     permissions:
       issues: write
@@ -425,7 +425,7 @@ jobs:
     name: Tell the worker image build
     needs: [publish, verify]
     if: ${{ !cancelled() && needs.publish.result == 'success' && (needs.verify.result == 'success' || needs.verify.result == 'skipped') && inputs.publish && (inputs.source-ref != '' || github.ref_type == 'tag') && inputs.dispatch-repo != '' }}
-    runs-on: ${{ inputs.runner }}
+    runs-on: ${{ startsWith(github.event_name, 'pull_request') && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || inputs.runner }}
     timeout-minutes: 5
     continue-on-error: true
     steps:
