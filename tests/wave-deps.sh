@@ -81,5 +81,18 @@ decide() { # <when> <event> <base_ref> <ref> -> active
 [ "$(decide always push '' refs/heads/main)" = true ] || fail "when: always"
 [ "$(decide never pull_request dedupe/all refs/pull/1/merge)" = false ] || fail "when: never"
 [ -z "$(decide sometimes push '' refs/heads/main)" ] || fail "an unknown when was taken"
+# no repos given: the checkout's .github/wave-deps, comments and blank lines dropped
+mkdir -p "$tmp/ws/.github"
+printf '# inside out\nomx-contract   omx-dsp # the DSP\n\nomx-panel\n' > "$tmp/ws/.github/wave-deps"
+: > "$tmp/out"
+GITHUB_WORKSPACE=$tmp/ws GITHUB_OUTPUT=$tmp/out WHEN=auto EVENT=pull_request BASE_REF=dedupe/all REF=x BRANCH=dedupe/all \
+    REPOS= FILE=.github/wave-deps bash "$tmp/decide.sh" >/dev/null
+grep -qx 'repos=omx-contract omx-dsp omx-panel' "$tmp/out" || fail "the list file: $(cat "$tmp/out")"
+rm "$tmp/ws/.github/wave-deps"
+GITHUB_WORKSPACE=$tmp/ws GITHUB_OUTPUT=$tmp/out WHEN=auto EVENT=pull_request BASE_REF=dedupe/all REF=x BRANCH=dedupe/all \
+    REPOS= FILE=.github/wave-deps bash "$tmp/decide.sh" >/dev/null 2>&1 && fail "a wave run with no list passed"
+: > "$tmp/out"
+GITHUB_WORKSPACE=$tmp/ws GITHUB_OUTPUT=$tmp/out WHEN=auto EVENT=pull_request BASE_REF=main REF=x BRANCH=dedupe/all \
+    REPOS= FILE=.github/wave-deps bash "$tmp/decide.sh" >/dev/null || fail "a run into main needs no list"
 
 echo "wave-deps: ok"
