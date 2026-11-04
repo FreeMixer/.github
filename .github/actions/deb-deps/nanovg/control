@@ -1,0 +1,26 @@
+Source: nanovg
+Section: libs
+Priority: optional
+Maintainer: Pau Aliagas <linuxnow@gmail.com>
+Build-Depends: debhelper-compat (= 13), meson, ninja-build, pkgconf
+Standards-Version: 4.6.2
+Homepage: https://github.com/memononen/nanovg
+Rules-Requires-Root: no
+
+Package: libnanovg0
+Architecture: any
+Multi-Arch: same
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: antialiased 2D vector drawing on OpenGL
+ NanoVG is a small antialiased vector graphics library for OpenGL, with an
+ API modelled on the HTML5 canvas: paths, fills, strokes, gradients, images
+ and text from TrueType fonts.
+
+Package: libnanovg-dev
+Section: libdevel
+Architecture: any
+Multi-Arch: same
+Depends: libnanovg0 (= ${binary:Version}), libgl-dev, ${misc:Depends}
+Description: antialiased 2D vector drawing on OpenGL, development files
+ The headers of NanoVG, its OpenGL backend (nanovg_gl.h, compiled into the
+ program that includes it) and the pkg-config file nanovg.

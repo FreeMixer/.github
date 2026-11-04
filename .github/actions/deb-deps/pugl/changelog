@@ -1,0 +1,6 @@
+pugl (0.5.9~git20261102.e6e7f24-1~omx) unstable; urgency=medium
+
+  * First package, for omx-panel's renderer window: pugl at e6e7f24 (the
+    pin of .github/pins.txt), with the X11 OpenGL and Cairo backends.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Wed, 04 Nov 2026 12:00:00 +0100

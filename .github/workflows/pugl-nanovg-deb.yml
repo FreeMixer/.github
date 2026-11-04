@@ -1,0 +1,122 @@
+name: pugl and nanovg DEBs
+
+# Builds libpugl0, libpugl-dev, libnanovg0 and libnanovg-dev, which Debian does not package, from .github/actions/
+# deb-deps/pugl and nanovg at the commits of .github/pins.txt (nanovg with packaging/nanovg/overlay, the build the RPM
+# uses), for every Debian release and architecture, and publishes them into deb/ of the Pages repository: omx-panel's
+# renderer Build-Depends on libpugl-dev and libnanovg-dev for its window. Run by hand, once per change: a published
+# version is never rebuilt with new bytes, so a moved pin needs a new changelog entry with it.
+#
+# publish=false, the default, is a dry run: it builds and assembles an unsigned tree as an artifact.
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Sign and publish; only a run on the main branch publishes'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    name: Check the release can publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Refuse to publish from anywhere but main
+        if: inputs.publish && github.ref != 'refs/heads/main'
+        run: echo "::error::publish is only for a run on main"; exit 1
+
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/release-preflight
+        with:
+          publish: ${{ inputs.publish }}
+          require-tag: 'false'
+          target: FreeMixer/freemixer.github.io
+          gpg-key: ${{ secrets.OPENMIXER_PACKAGES_SIGNING_KEY }}
+          pages-token: ${{ secrets.PAGES_TOKEN }}
+
+  build:
+    name: Build (${{ matrix.suite }}, ${{ matrix.arch }})
+    needs: preflight
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || github.event.pull_request.head.repo.fork && 'ubuntu-latest' || vars.OMX_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 30
+    container:
+      image: debian:${{ matrix.suite }}
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [bookworm, trixie]
+        arch: [amd64, arm64]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Install the build tools
+        run: |
+          apt-get update -qq
+          apt-get install -y --no-install-recommends ca-certificates git dpkg-dev debhelper build-essential lintian
+
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/deb-deps
+        with:
+          names: pugl nanovg
+
+      - name: Lay the packages out by Debian release
+        env:
+          SUITE: ${{ matrix.suite }}
+        run: |
+          mkdir -p "out/$SUITE"
+          cp dep-debs/libpugl*.deb dep-debs/libnanovg*.deb "out/$SUITE/"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pugl-nanovg-debs-${{ matrix.suite }}-${{ matrix.arch }}
+          path: out
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    name: Sign and publish
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: debian:trixie
+    concurrency:
+      group: publish-FreeMixer/freemixer.github.io
+      cancel-in-progress: false
+    env:
+      DO_PUBLISH: ${{ inputs.publish && github.ref == 'refs/heads/main' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: pugl-nanovg-debs-*
+          merge-multiple: true
+          path: collected
+
+      - uses: ./.github/actions/publish-debs
+        with:
+          deb-dir: collected
+          tag: pugl-nanovg
+          sign: ${{ env.DO_PUBLISH }}
+          gpg-key: ${{ secrets.OPENMIXER_PACKAGES_SIGNING_KEY }}
+          # the original key co-signs the apt index while installs may hold only it (publish-debs)
+          cosign-key: ${{ secrets.RPM_GPG_KEY }}
+          cosign-passphrase: ${{ secrets.RPM_GPG_PASSPHRASE }}
+          publish-token: ${{ secrets.PAGES_TOKEN }}
+          site-gpg-key: ${{ secrets.SITE_GPG_KEY }}
+
+      - uses: actions/upload-artifact@v4
+        if: env.DO_PUBLISH != 'true'
+        with:
+          name: pugl-nanovg-unsigned-apt-tree
+          path: build/repo/**
+          if-no-files-found: error
+          retention-days: 30

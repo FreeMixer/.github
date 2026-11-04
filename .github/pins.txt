@@ -2,3 +2,5 @@
 # actions read this file, so a pin moves in one place. Bump the debian/changelog of the dependency
 # with it (actions/deb-deps/<name>/changelog): a published version is never rebuilt with new bytes.
 clap-headers https://github.com/free-audio/clap 195b42a004144fab0b3cf95e9c067187d15365b7
+pugl https://gitlab.com/lv2/pugl.git e6e7f24d09fb528e697817300b60ca0afe19e2b6
+nanovg https://github.com/memononen/nanovg.git ce3bf745eb2d2dbc14a50bf2446783f691ac4353
