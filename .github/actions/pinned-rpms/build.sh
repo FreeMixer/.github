@@ -1,12 +1,12 @@
 #!/bin/bash
-# Build the RPMs of the third-party libraries the channel packages from a pinned commit (pugl, nanovg), from
+# Build the RPMs of the third-party sources the channel packages from a pinned commit (pugl, nanovg, surge-xt), from
 # packaging/<name>/<name>.spec, into $1, and install them so the next one and a caller's build find them.
 #
 #   build.sh <output dir> <name>...
 #
 # The spec's commit0 must be the commit .github/pins.txt names for it: the pin moves in one place and the build
 # refuses a spec left behind. A file of packaging/<name>/overlay/ is a Source of the spec (the DEB lays the same files
-# on the source). Runs as root in a Fedora container. SUFFIX is not taken: these specs carry .omx in their Release.
+# on the source). A package with a make-source.sh builds its Source0 with it instead of downloading one. Runs as root in a Fedora container. SUFFIX is not taken: these specs carry .omx in their Release.
 set -euo pipefail
 
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -27,7 +27,12 @@ for name in "$@"; do
     mkdir -p "$top/SOURCES" "$top/SPECS"
     cp "$spec" "$top/SPECS/"
     [ -d "$packaging/$name/overlay" ] && cp "$packaging/$name/overlay/"* "$top/SOURCES/"
-    spectool -g -C "$top/SOURCES" "$top/SPECS/$name.spec"
+    if [ -x "$packaging/$name/make-source.sh" ]; then
+        # a source that is not one archive of the commit (Surge XT's submodules): the package makes its own tarball
+        "$packaging/$name/make-source.sh" "$top/checkout" "$top/SOURCES/$name-$pin.tar.gz"
+    else
+        spectool -g -C "$top/SOURCES" "$top/SPECS/$name.spec"
+    fi
     dnf builddep -y --setopt=install_weak_deps=False "$top/SPECS/$name.spec"
     rpmbuild --define "_topdir $top" -ba "$top/SPECS/$name.spec"
     find "$top/RPMS" -name '*.rpm' -exec cp {} "$out/" \;

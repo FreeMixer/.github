@@ -1,0 +1,137 @@
+name: Surge XT DEBs
+
+# Builds surge-xt, surge-xt-data, surge-xt-clap and surge-xt-lv2, which Debian does not package, from
+# .github/actions/deb-deps/surge-xt at the commit of .github/pins.txt (packaging/surge-xt/make-source.sh lays out the
+# source with its submodules), for every Debian release and architecture, installs the result in a clean container
+# with omx-clap-host from the channel and loads it there (packaging/surge-xt/load-check.sh), and publishes it into
+# deb/ of the Pages repository. Run by hand, once per change: a published version is never rebuilt with new bytes.
+#
+# publish=false, the default, is a dry run: it builds and assembles an unsigned tree as an artifact.
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Sign and publish; only a run on the main branch publishes'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    name: Check the release can publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Refuse to publish from anywhere but main
+        if: inputs.publish && github.ref != 'refs/heads/main'
+        run: echo "::error::publish is only for a run on main"; exit 1
+
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/release-preflight
+        with:
+          publish: ${{ inputs.publish }}
+          require-tag: 'false'
+          target: FreeMixer/freemixer.github.io
+          gpg-key: ${{ secrets.OPENMIXER_PACKAGES_SIGNING_KEY }}
+          pages-token: ${{ secrets.PAGES_TOKEN }}
+
+  build:
+    name: Build (${{ matrix.suite }}, ${{ matrix.arch }})
+    needs: preflight
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || github.event.pull_request.head.repo.fork && 'ubuntu-latest' || vars.OMX_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 120
+    container:
+      image: debian:${{ matrix.suite }}
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [bookworm, trixie]
+        arch: [amd64, arm64]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Install the build tools
+        run: |
+          apt-get update -qq
+          apt-get install -y --no-install-recommends ca-certificates git dpkg-dev debhelper build-essential lintian
+
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/deb-deps
+        with:
+          names: surge-xt
+
+      - name: Lay the packages out by Debian release
+        env:
+          SUITE: ${{ matrix.suite }}
+        run: |
+          set -euo pipefail
+          mkdir -p "out/$SUITE"
+          cp dep-debs/surge-xt*.deb "out/$SUITE/"
+          dpkg-deb -c dep-debs/surge-xt-clap_*.deb | grep -q ' ./usr/lib/clap/Surge XT.clap$' \
+            || { echo "::error::surge-xt-clap does not carry /usr/lib/clap/Surge XT.clap"; exit 1; }
+          dpkg-deb -c dep-debs/surge-xt-lv2_*.deb | grep -q ' ./usr/lib/lv2/Surge XT.lv2/$' \
+            || { echo "::error::surge-xt-lv2 does not carry /usr/lib/lv2/Surge XT.lv2"; exit 1; }
+          if dpkg-deb -c dep-debs/surge-xt*.deb | grep -q ' ./usr/local'; then echo "::error::a package carries /usr/local"; exit 1; fi
+
+      - uses: ./.github/actions/add-openmixer
+
+      - name: Load the plugin in the hosts' scanners
+        run: |
+          set -euo pipefail
+          apt-get install -y --no-install-recommends omx-clap-host lilv-utils
+          apt-get install -y --no-install-recommends ./dep-debs/surge-xt*.deb
+          packaging/surge-xt/load-check.sh /
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: surge-xt-debs-${{ matrix.suite }}-${{ matrix.arch }}
+          path: out
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    name: Sign and publish
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: debian:trixie
+    concurrency:
+      group: publish-FreeMixer/freemixer.github.io
+      cancel-in-progress: false
+    env:
+      DO_PUBLISH: ${{ inputs.publish && github.ref == 'refs/heads/main' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: surge-xt-debs-*
+          merge-multiple: true
+          path: collected
+
+      - uses: ./.github/actions/publish-debs
+        with:
+          deb-dir: collected
+          tag: surge-xt
+          sign: ${{ env.DO_PUBLISH }}
+          gpg-key: ${{ secrets.OPENMIXER_PACKAGES_SIGNING_KEY }}
+          # the original key co-signs the apt index while installs may hold only it (publish-debs)
+          cosign-key: ${{ secrets.RPM_GPG_KEY }}
+          cosign-passphrase: ${{ secrets.RPM_GPG_PASSPHRASE }}
+          publish-token: ${{ secrets.PAGES_TOKEN }}
+          site-gpg-key: ${{ secrets.SITE_GPG_KEY }}
+
+      - uses: actions/upload-artifact@v4
+        if: env.DO_PUBLISH != 'true'
+        with:
+          name: surge-xt-unsigned-apt-tree
+          path: build/repo/**
+          if-no-files-found: error
+          retention-days: 30

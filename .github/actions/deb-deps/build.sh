@@ -24,6 +24,9 @@ for name in "$@"; do
     src=$work/$name
     if [ "$name" = mod-host-protocol ]; then
         "$carried/mod-host/prepare-source.sh" "$src"
+    elif [ -x "$carried/$name/make-source.sh" ]; then
+        # a source with submodules (Surge XT): the package lays out its own checkout
+        "$carried/$name/make-source.sh" "$src"
     else
         read -r _ url ref < <(grep "^$name " "$pins") || { echo "$name has no line in pins.txt" >&2; exit 1; }
         mkdir -p "$src"

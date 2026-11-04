@@ -63,4 +63,12 @@ version name. A version name does not say which bytes you have; a commit does. S
   whose `commit0` is not the pin is refused. NanoVG ships no library build, so `packaging/nanovg/overlay/meson.build`
   is laid on its source for both. omx-panel's renderer builds its window against them.
 
+- Surge XT, which neither distribution packages, is pinned here and built as a CLAP and an LV2 by `packaging/surge-xt`
+  (the RPMs, `actions/pinned-rpms`) and `actions/deb-deps/surge-xt` (the DEBs), through one script, `packaging/surge-xt/
+  overlay/surge-xt-build.sh`. Upstream tags nothing from 1.4.0 on, so the pin is a commit of its main that calls itself
+  1.4.0; its submodules come with it (`packaging/surge-xt/make-source.sh`). The files go to `/usr/lib/clap`,
+  `/usr/lib/lv2` and `/usr/share/surge-xt`; `packaging/surge-xt/load-check.sh` loads the installed package in
+  `omx-clap-scan` and `lilv`, and the workflows `surge-xt-rpm.yml` and `surge-xt-deb.yml` run it for fedora 44 and
+  bookworm and trixie, on x86_64/amd64 and aarch64/arm64, before they publish.
+
 A published version is never rebuilt with new bytes. To change what goes in, move the pin and bump the version.
