@@ -36,6 +36,16 @@ Call the shared workflows and actions by the `v1` tag, never by `main`:
 `v1.0.0` and every other full version tag never move. A breaking change gets a new major tag, `v2`.
 The shared workflows call their own actions at `v1` too, so a pinned caller runs one consistent version.
 
+## Wave branches
+
+Work that spans repositories lands on a `dedupe/all` branch of each, and a pull request into one builds on its
+siblings' same branch, which the channel does not carry yet. `.github/actions/wave-deps` takes the siblings a
+repository builds on and, on a pull request into `dedupe/all` or a push to it, builds each from its `dedupe/all` (as
+the minor the wave releases) into a local package repository that dnf and apt then prefer over the channel; the
+builddep and install steps after it are unchanged. Every other run keeps the channel's releases. The builds are
+cached by the siblings' commits. The action's top says where it goes; `tests/wave-deps.sh` checks the version it
+builds at and when it switches on.
+
 ## Why we pin
 
 `pins.txt` names each outside source the packages are built from by its exact commit, not by a branch or a
