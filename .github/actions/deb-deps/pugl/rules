@@ -1,0 +1,10 @@
+#!/usr/bin/make -f
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+%:
+	dh $@ --buildsystem=meson
+
+override_dh_auto_configure:
+	dh_auto_configure -- -Ddocs=disabled -Dexamples=disabled -Dtests=disabled -Dlint=false -Dvulkan=disabled \
+		-Dbindings_cpp=disabled -Dopengl=enabled -Dcairo=enabled -Dstub=false

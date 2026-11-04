@@ -1,0 +1,28 @@
+Source: pugl
+Section: libs
+Priority: optional
+Maintainer: Pau Aliagas <linuxnow@gmail.com>
+Build-Depends: debhelper-compat (= 13), meson, ninja-build, pkgconf, libx11-dev, libxext-dev, libxrandr-dev,
+ libxcursor-dev, libgl-dev, libcairo2-dev
+Standards-Version: 4.6.2
+Homepage: https://gitlab.com/lv2/pugl
+Rules-Requires-Root: no
+
+Package: libpugl0
+Architecture: any
+Multi-Arch: same
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: minimal portable API for embeddable GUIs
+ Pugl opens a window, embedded in a host's or on its own, and delivers its
+ events; drawing is left to a backend: OpenGL, Cairo or none. These are its
+ X11 libraries, one per backend.
+
+Package: libpugl-dev
+Section: libdevel
+Architecture: any
+Multi-Arch: same
+Depends: libpugl0 (= ${binary:Version}), libx11-dev, libxext-dev, libxrandr-dev, libxcursor-dev, libgl-dev,
+ libcairo2-dev, ${misc:Depends}
+Description: minimal portable API for embeddable GUIs, development files
+ The headers and the pkg-config files of pugl (pugl-0, pugl-gl-0,
+ pugl-cairo-0), for building against it.
