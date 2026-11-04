@@ -1,0 +1,23 @@
+name: pinned-rpms
+description: Build and install the RPMs of the third-party libraries the channel packages from a pinned commit
+
+# pugl and nanovg, which neither Fedora nor Debian package: what omx-panel's renderer BuildRequires for its window.
+# Each is built from packaging/<name>/<name>.spec at the commit of .github/pins.txt and installed. Runs in a Fedora
+# container as root.
+
+inputs:
+  names:
+    description: which of them to build, space separated, in order
+    default: pugl nanovg
+  out:
+    description: directory the RPMs are copied to; the source packages are kept in SRPMS/ under it
+    default: pinned-rpms
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        NAMES: ${{ inputs.names }}
+        OUT: ${{ inputs.out }}
+      run: '"$GITHUB_ACTION_PATH/build.sh" "$OUT" $NAMES'

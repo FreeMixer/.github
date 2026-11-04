@@ -1,0 +1,4 @@
+# published from a pinned commit, not uploaded to Debian: no bug to close
+libpugl0: initial-upload-closes-no-bugs
+# one package carries pugl's core and backend libraries, each with its own soname
+libpugl0: package-name-doesnt-match-sonames *
