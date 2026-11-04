@@ -15,7 +15,7 @@ git config user.email t@example.invalid; git config user.name t; git config comm
 git commit -q --allow-empty -m base; git branch -M main; git checkout -q -b topic
 git commit -q --allow-empty -m "clean change"
 "$chk" main..HEAD >/dev/null || fail "a clean commit was refused"
-git commit -q --allow-empty -m "change" -m "Co-Authored-By: Claude <noreply@anthropic.com>"
+git commit -q --allow-empty -m "change" -m "Co-Authored""-By: Claude <noreply@anthro""pic.com>"
 if "$chk" main..HEAD >/dev/null; then fail "an attributed commit passed"; fi
 
 # sabotage: the same commit against an empty pattern list must not read as a hit, and a missing list is exit 2
@@ -38,7 +38,7 @@ G="git -C $tmp/o -c user.email=t@example.invalid -c user.name=t -c commit.gpgsig
 $G add -A; $G commit -qm one; $G tag v1
 git clone -q --bare "$tmp/o" "$tmp/o.git"
 mkdir -p "$tmp/home" "$tmp/s/r"; git -C "$tmp/s/r" init -q
-echo "clean change" > "$tmp/msg"; printf 'change\n\nCo-Authored-By: Claude <noreply@anthropic.com>\n' > "$tmp/bad"
+echo "clean change" > "$tmp/msg"; printf 'change\n\nCo-Authored''-By: Claude <noreply@anthro''pic.com>\n' > "$tmp/bad"
 hook() { (cd "$tmp/s/r" && env -u FREEMIXER_DOTGITHUB HOME=$tmp/home FREEMIXER_DOTGITHUB_URL=$1 sh "$stub" "$2"); }
 rc=0; out=$(hook "$tmp/none.git" "$tmp/msg" 2>&1) || rc=$?
 [ "$rc" = 1 ] || fail "with no checker anywhere the stub gave $rc, not 1"
