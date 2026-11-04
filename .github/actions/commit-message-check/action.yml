@@ -26,3 +26,10 @@ runs:
         set -euo pipefail
         [ -n "$BASE_REF" ] || { echo 'commit-message-check: no base-ref (run on a pull_request)' >&2; exit 2; }
         "${{ github.action_path }}/commit-message-check.sh" "origin/$BASE_REF..HEAD"
+    - name: The same commits name no private repository, machine or path
+      shell: bash
+      env:
+        BASE_REF: ${{ inputs.base-ref }}
+      run: |
+        set -euo pipefail
+        "${{ github.action_path }}/../private-refs-check/check.sh" --messages "origin/$BASE_REF..HEAD"
