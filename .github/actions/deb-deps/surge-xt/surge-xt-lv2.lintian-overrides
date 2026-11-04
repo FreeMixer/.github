@@ -1,0 +1,5 @@
+# published from a pinned commit, not uploaded to Debian: no bug to close
+surge-xt-lv2: initial-upload-closes-no-bugs
+# JUCE carries libpng and tinyxml inside the plugin, so that one file loads in any host whatever the host links
+surge-xt-lv2: embedded-library libpng *
+surge-xt-lv2: embedded-library tinyxml *

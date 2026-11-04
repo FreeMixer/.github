@@ -11,6 +11,7 @@ Homepage: https://surge-synthesizer.github.io/
 Rules-Requires-Root: no
 
 Package: surge-xt
+Section: metapackages
 Architecture: any
 Depends: surge-xt-clap (= ${binary:Version}), surge-xt-lv2 (= ${binary:Version}), ${misc:Depends}
 Description: hybrid synthesizer, CLAP and LV2 plugins
