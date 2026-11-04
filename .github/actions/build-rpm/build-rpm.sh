@@ -1,25 +1,28 @@
 #!/bin/bash
 # Build the RPMs of a tree from a tarball of it.
 #
-#   build-rpm.sh [-C <tree>] [-t <release tag>] <output dir>
+#   build-rpm.sh [-C <tree>] [-t <release tag>] [-n] <output dir>
 #
 # The spec is the tree's only packaging/*.spec and the version is its own. With -t the tag must be
 # v<version> and the tree must be that tag's commit; without it the build is a snapshot: the release
 # carries .git<short sha>. The spec's %changelog is generated from git (commit subjects since the previous
-# tag, .github/actions/changelog/changelog.sh); the version is the spec's. BuildRequires must be installed.
+# tag, .github/actions/changelog/changelog.sh); the version is the spec's. BuildRequires must be installed. -n skips
+# %check (rpmbuild --nocheck): a sibling built for another repository's tests (wave-deps), whose own CI runs its tests.
 set -euo pipefail
 
 tree=.
 tag=
-while getopts C:t: opt; do
+check=()
+while getopts C:t:n opt; do
     case $opt in
         C) tree=$OPTARG ;;
         t) tag=$OPTARG ;;
+        n) check=(--nocheck) ;;
         *) exit 2 ;;
     esac
 done
 shift $((OPTIND - 1))
-out=$(readlink -m "${1:?usage: build-rpm.sh [-C <tree>] [-t <release tag>] <output dir>}")
+out=$(readlink -m "${1:?usage: build-rpm.sh [-C <tree>] [-t <release tag>] [-n] <output dir>}")
 tree=$(readlink -f "$tree")
 
 specs=("$tree"/packaging/*.spec)
@@ -50,6 +53,6 @@ sed -i '/^%changelog/q' "$spec"
 "$(dirname "$(readlink -f "$0")")/../changelog/changelog.sh" rpm -C "$tree" "$ref" "$version-$release" >> "$spec"
 
 git -C "$tree" archive --prefix="$name-$version/" HEAD | gzip > "$top/SOURCES/$name-$version.tar.gz"
-rpmbuild --define "_topdir $top" -ba "$spec"
+rpmbuild --define "_topdir $top" "${check[@]}" -ba "$spec"
 find "$top/RPMS" "$top/SRPMS" -name '*.rpm' -exec cp {} "$out/" \;
 ls "$out"/*.rpm

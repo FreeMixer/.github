@@ -1,0 +1,141 @@
+name: wave-deps
+description: On a run for the wave branch, build the named siblings from that branch and prefer them over the channel
+
+# A wave lands across repositories on a branch of each (dedupe/all): a pull request into it builds on its siblings'
+# same branch, which the channel does not carry yet. On a pull request whose base is that branch, or a push to it, this
+# builds each named sibling at its branch head, in the order given, into a local package repository (dnf or apt) that
+# the system then prefers over the channel (build.sh says how, and the version each is built as). The steps after it
+# install as they always do (dnf builddep, apt-get build-dep, dnf/apt install) and take the fresh siblings. Any other
+# run (main, a release, a pull request into main) does nothing here and keeps the channel's releases.
+#
+# A repository lists the siblings it builds on, inside out, in .github/wave-deps (one or more per line, # comments),
+# and places the action after its checkout and add-openmixer, before the build dependencies are installed:
+#
+#       - uses: FreeMixer/.github/.github/actions/add-openmixer@v1
+#       - uses: actions/checkout@v4
+#       - uses: FreeMixer/.github/.github/actions/wave-deps@v1
+#
+# (or names them in the repos input, which then wins over the file).
+#
+# The builds are cached by the siblings' commits (and this action's scripts), one cache per distribution and machine.
+# Runs as root in a Fedora or Debian container that can reach github.com.
+
+inputs:
+  repos:
+    description: the siblings to build, space separated, in dependency order (each builds on the ones before it); empty reads file
+    default: ''
+  file:
+    description: the checkout's list of the siblings, read when repos is empty
+    default: .github/wave-deps
+  branch:
+    description: the wave branch; a pull request into it, or a push to it, turns the action on
+    default: dedupe/all
+  owner:
+    description: the GitHub owner of the siblings
+    default: FreeMixer
+  when:
+    description: auto (the wave branch's runs only), always, or never
+    default: auto
+  prefix:
+    description: where the local repository is kept (and cached)
+    default: /var/cache/wave-deps
+
+outputs:
+  active:
+    description: true when the siblings were built and their repository added
+    value: ${{ steps.decide.outputs.active }}
+  prefix:
+    description: the local repository's directory
+    value: ${{ inputs.prefix }}
+
+runs:
+  using: composite
+  steps:
+    - id: decide
+      shell: bash
+      env:
+        WHEN: ${{ inputs.when }}
+        BRANCH: ${{ inputs.branch }}
+        REPOS: ${{ inputs.repos }}
+        FILE: ${{ inputs.file }}
+        EVENT: ${{ github.event_name }}
+        BASE_REF: ${{ github.base_ref }}
+        REF: ${{ github.ref }}
+      run: |
+        set -euo pipefail
+        case $WHEN in
+          always) active=true ;;
+          never) active=false ;;
+          auto)
+            active=false
+            if [[ $EVENT == pull_request* ]] && [ "$BASE_REF" = "$BRANCH" ]; then active=true; fi
+            if [ "$EVENT" = push ] && [ "$REF" = "refs/heads/$BRANCH" ]; then active=true; fi
+            ;;
+          *) echo "::error::wave-deps: when is auto, always or never, not '$WHEN'"; exit 1 ;;
+        esac
+        if [ "$active" = true ] && [ -z "$(tr -d '[:space:]' <<<"$REPOS")" ]; then
+          list=${GITHUB_WORKSPACE:-.}/$FILE
+          [ -f "$list" ] || { echo "::error::wave-deps: no repos given and no $FILE in the checkout"; exit 1; }
+          REPOS=$(sed 's/#.*//' "$list" | tr -s '[:space:]' ' ' | sed 's/^ //; s/ $//')
+          [ -n "$REPOS" ] || { echo "::error::wave-deps: $FILE names no sibling"; exit 1; }
+        fi
+        echo "active=$active" >> "$GITHUB_OUTPUT"
+        echo "repos=$(tr -s '[:space:]' ' ' <<<"$REPOS" | sed 's/^ //; s/ $//')" >> "$GITHUB_OUTPUT"
+        if [ "$active" = true ]; then
+          echo "wave-deps: a $BRANCH run; building $REPOS from $BRANCH"
+        else
+          echo "wave-deps: not a $BRANCH run; the channel's releases stand"
+        fi
+
+    - id: key
+      if: steps.decide.outputs.active == 'true'
+      shell: bash
+      env:
+        BRANCH: ${{ inputs.branch }}
+        OWNER: ${{ inputs.owner }}
+        REPOS: ${{ steps.decide.outputs.repos }}
+      run: |
+        set -euo pipefail
+        # the tools the build and the cache need, before the cache is restored
+        "$GITHUB_ACTION_PATH/build.sh" --tools
+        shas=
+        for r in $REPOS; do
+          sha=
+          for n in 1 2 3 4 5; do
+            sha=$(git ls-remote "https://github.com/$OWNER/$r.git" "refs/heads/$BRANCH" | cut -f1) && [ -n "$sha" ] && break
+            echo "::warning::wave-deps: no $BRANCH head read for $r, attempt $n of 5"; sleep $((n * 5))
+          done
+          [ -n "$sha" ] || { echo "::error::wave-deps: $OWNER/$r has no $BRANCH"; exit 1; }
+          echo "wave-deps: $r $BRANCH at $sha"
+          shas+="$r=$sha "
+        done
+        . /etc/os-release
+        scripts=$(cat "$GITHUB_ACTION_PATH/build.sh" "$GITHUB_ACTION_PATH/../build-rpm/build-rpm.sh" \
+          "$GITHUB_ACTION_PATH/../build-deb/build-deb.sh" | sha256sum | cut -c1-16)
+        digest=$(printf '%s' "$shas" | sha256sum | cut -c1-32)
+        echo "shas=$shas" >> "$GITHUB_OUTPUT"
+        echo "key=wave-deps-$ID-$VERSION_ID-$(uname -m)-$scripts-$digest" >> "$GITHUB_OUTPUT"
+
+    - id: restore
+      if: steps.decide.outputs.active == 'true'
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ inputs.prefix }}
+        key: ${{ steps.key.outputs.key }}
+
+    - if: steps.decide.outputs.active == 'true'
+      shell: bash
+      env:
+        PREFIX: ${{ inputs.prefix }}
+        BRANCH: ${{ inputs.branch }}
+        OWNER: ${{ inputs.owner }}
+        REPOS: ${{ steps.decide.outputs.repos }}
+        WAVE_DEPS_SHAS: ${{ steps.key.outputs.shas }}
+      run: '"$GITHUB_ACTION_PATH/build.sh" "$PREFIX" "$BRANCH" "$OWNER" $REPOS'
+
+    - if: steps.decide.outputs.active == 'true' && steps.restore.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      continue-on-error: true
+      with:
+        path: ${{ inputs.prefix }}
+        key: ${{ steps.key.outputs.key }}
