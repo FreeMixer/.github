@@ -103,8 +103,8 @@ on:
         description: 'After a publish, install the new version from the channel in a clean container of each release. false skips the check: the release is then not proven installable, and the worker image dispatch goes out on the publish alone.'
       dispatch-repo:
         type: string
-        default: 'zerosignage/platform'
-        description: 'Repository whose worker image build is told about the new packages by a repository_dispatch; empty sends nothing'
+        default: ''
+        description: 'Repository whose worker image build is told about the new packages by a repository_dispatch, else the OMX_DISPATCH_REPO variable; neither sends nothing'
       dispatch-event:
         type: string
         default: 'openmixer-package-published'
@@ -424,7 +424,7 @@ jobs:
   notify-worker-image:
     name: Tell the worker image build
     needs: [publish, verify]
-    if: ${{ !cancelled() && needs.publish.result == 'success' && (needs.verify.result == 'success' || needs.verify.result == 'skipped') && inputs.publish && (inputs.source-ref != '' || github.ref_type == 'tag') && inputs.dispatch-repo != '' }}
+    if: ${{ !cancelled() && needs.publish.result == 'success' && (needs.verify.result == 'success' || needs.verify.result == 'skipped') && inputs.publish && (inputs.source-ref != '' || github.ref_type == 'tag') && (inputs.dispatch-repo != '' || vars.OMX_DISPATCH_REPO != '') }}
     runs-on: ${{ startsWith(github.event_name, 'pull_request') && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || inputs.runner }}
     timeout-minutes: 5
     continue-on-error: true
@@ -433,7 +433,7 @@ jobs:
         env:
           DISPATCH_TOKEN: ${{ secrets.DISPATCH_TOKEN }}
           PAGES_TOKEN: ${{ secrets.PAGES_TOKEN }}
-          TARGET: ${{ inputs.dispatch-repo }}
+          TARGET: ${{ inputs.dispatch-repo || vars.OMX_DISPATCH_REPO }}
           EVENT: ${{ inputs.dispatch-event }}
           PACKAGE: ${{ inputs.package-name }}
           TAG: ${{ inputs.source-ref || github.ref_name }}
