@@ -138,6 +138,13 @@ mkdir -p "$repo"
 tools
 publish
 
+# what the system holds before the siblings' build dependencies come in: they leave with the builds, so the caller's
+# steps start from what they would without this action, whether the builds ran or came from the cache
+pkgs() {
+    if [ "$kind" = rpm ]; then rpm -qa --qf '%{NAME}\n'; else dpkg-query -W -f '${db:Status-Abbrev} ${Package}\n' | awk '$1 ~ /^ii/ {print $2}'; fi | sort -u
+}
+before=$(pkgs)
+
 work=$(mktemp -d)
 for name in "$@"; do
     src=$work/$name
@@ -160,5 +167,14 @@ for name in "$@"; do
     echo "::endgroup::"
 done
 rm -rf "$work"
+added=$(comm -13 <(echo "$before") <(pkgs))
+if [ -n "$added" ]; then
+    echo "wave-deps: removing the siblings' build dependencies: $(echo $added)"
+    if [ "$kind" = rpm ]; then
+        dnf remove -y -q $added
+    else
+        apt-get purge -y -q $added
+    fi
+fi
 echo "$want" > "$prefix/stamp"
 ls "$repo"
