@@ -1,0 +1,14 @@
+name: spdx-check
+description: Fail when a tracked file a comment can be written in does not open with its licence and copyright
+
+# One check for every FreeMixer repository that runs it, with no list of files: a file whose format has no comment
+# syntax carries no header, and check.sh says which formats those are. The caller has checked the repository out. The
+# action first proves the check goes red on each planted failure, then reads the tree.
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        "$GITHUB_ACTION_PATH/check.sh" --self-test
+        "$GITHUB_ACTION_PATH/check.sh" "$GITHUB_WORKSPACE"
