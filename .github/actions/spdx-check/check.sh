@@ -25,6 +25,9 @@ no_comment_syntax() {
   esac
   case "$base" in
     LICENSE|LICENSE.*|LICENCE|LICENCE.*|COPYING|COPYING.*) return 0 ;;   # the licence text itself
+    VERSION) return 0 ;;                                                 # one value, read whole
+    *.patch|*.diff) return 0 ;;                                          # every line is the change, or the mail above it
+    *.abi|*.layout) return 0 ;;                                          # a tool's dump of an ABI, rewritten whole
     *.json|*.jsonl) return 0 ;;                                          # JSON has no comments
     *.txt|*.tsv|*.csv) return 0 ;;                                       # plain text and tables: every line is data
     *.sha256) return 0 ;;                                                # digests, one per line
@@ -66,6 +69,9 @@ if [ "${1:-}" = --self-test ]; then
     printf '{"a": 1}\n' > "$t/r/src/x.json"
     printf '1 bell:630\n' > "$t/r/src/golden.txt"
     printf 'a\tb\n' > "$t/r/src/t.tsv"
+    printf '1.2.3\n' > "$t/r/VERSION"
+    printf -- '--- a\n+++ b\n' > "$t/r/src/x.patch"
+    printf '<abi-corpus/>\n' > "$t/r/src/x.abi"
     printf 'GNU GENERAL PUBLIC LICENSE\n' > "$t/r/LICENSE"
     printf 'x (1) unstable; urgency=medium\n' > "$t/r/debian/changelog"
     printf '3.0 (native)\n' > "$t/r/debian/source/format"
