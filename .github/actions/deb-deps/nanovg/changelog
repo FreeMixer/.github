@@ -1,0 +1,7 @@
+nanovg (0.0~git20260219.ce3bf74-1~omx) unstable; urgency=medium
+
+  * First package, for omx-panel's renderer window: NanoVG at ce3bf74 (the
+    pin of .github/pins.txt), built as libnanovg.so.0 by
+    packaging/nanovg/overlay/meson.build, the build the RPM uses too.
+
+ -- Pau Aliagas <linuxnow@gmail.com>  Wed, 04 Nov 2026 12:00:00 +0100

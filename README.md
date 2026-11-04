@@ -47,4 +47,9 @@ version name. A version name does not say which bytes you have; a commit does. S
 - mod-host is not pinned here: `packaging/mod-host` carries the audinux spec and the upstream pull requests it
   applies, one patch file per pull request, until audinux ships them (`docs/mod-host-carried-patches.md`).
 
+- pugl and nanovg, which neither Fedora nor Debian package, are pinned here and built by `packaging/pugl`,
+  `packaging/nanovg` (the RPMs, `actions/pinned-rpms`) and `actions/deb-deps/pugl`, `nanovg` (the DEBs); a spec
+  whose `commit0` is not the pin is refused. NanoVG ships no library build, so `packaging/nanovg/overlay/meson.build`
+  is laid on its source for both. omx-panel's renderer builds its window against them.
+
 A published version is never rebuilt with new bytes. To change what goes in, move the pin and bump the version.

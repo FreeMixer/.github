@@ -32,6 +32,8 @@ for name in "$@"; do
         git -C "$src" checkout -q FETCH_HEAD
         [ "$(git -C "$src" rev-parse HEAD)" = "$ref" ] || { echo "$name is not at $ref" >&2; exit 1; }
     fi
+    # the files the packaging lays on the upstream source (a build system upstream does not ship), as the RPM does
+    [ -d "$carried/$name/overlay" ] && cp -r "$carried/$name/overlay/." "$src/"
     cp -r "$here/$name" "$src/debian"
     (cd "$src" && apt-get build-dep -y --no-install-recommends ./ >/dev/null && dpkg-buildpackage -b -uc -us && lintian --fail-on error,warning ../"${name}"_*.changes)
     cp "$work"/*.deb "$out/"
