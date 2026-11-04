@@ -426,7 +426,7 @@ jobs:
   notify-worker-image:
     name: Tell the worker image build
     needs: [publish, verify]
-    if: ${{ !cancelled() && needs.publish.result == 'success' && (needs.verify.result == 'success' || needs.verify.result == 'skipped') && inputs.publish && (inputs.source-ref != '' || github.ref_type == 'tag') && inputs.dispatch-repo != '' }}
+    if: ${{ !cancelled() && needs.publish.result == 'success' && (needs.verify.result == 'success' || needs.verify.result == 'skipped') && inputs.publish && (inputs.source-ref != '' || github.ref_type == 'tag') && (inputs.dispatch-repo != '' || vars.OMX_DISPATCH_REPO != '') }}
     runs-on: ${{ startsWith(github.event_name, 'pull_request') && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || inputs.runner }}
     timeout-minutes: 5
     continue-on-error: true
@@ -447,10 +447,6 @@ jobs:
             echo "::notice::DISPATCH_TOKEN is not set; trying PAGES_TOKEN, whose scope on $TARGET is not recorded. Set DISPATCH_TOKEN to make this reliable."
           else
             echo "::notice::no DISPATCH_TOKEN (and no PAGES_TOKEN): the worker image build was not told about $PACKAGE $TAG"
-            exit 0
-          fi
-          if [ -z "$TARGET" ]; then
-            echo "no dispatch-repo and no OMX_DISPATCH_REPO: nothing to tell"
             exit 0
           fi
           gh api "repos/$TARGET/dispatches" -f event_type="$EVENT" \
