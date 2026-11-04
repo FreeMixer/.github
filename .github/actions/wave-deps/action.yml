@@ -8,23 +8,25 @@ description: On a run for the wave branch, build the named siblings from that br
 # install as they always do (dnf builddep, apt-get build-dep, dnf/apt install) and take the fresh siblings. Any other
 # run (main, a release, a pull request into main) does nothing here and keeps the channel's releases.
 #
-# Place it after add-openmixer, before the build dependencies are installed:
+# A repository lists the siblings it builds on, inside out, in .github/wave-deps (one or more per line, # comments),
+# and places the action after its checkout and add-openmixer, before the build dependencies are installed:
 #
-#   env:
-#     WAVE_REPOS: omx-contract omx-dsp   # the siblings this repository builds on, inside out
-#   ...
 #       - uses: FreeMixer/.github/.github/actions/add-openmixer@v1
+#       - uses: actions/checkout@v4
 #       - uses: FreeMixer/.github/.github/actions/wave-deps@v1
-#         with:
-#           repos: ${{ env.WAVE_REPOS }}
+#
+# (or names them in the repos input, which then wins over the file).
 #
 # The builds are cached by the siblings' commits (and this action's scripts), one cache per distribution and machine.
 # Runs as root in a Fedora or Debian container that can reach github.com.
 
 inputs:
   repos:
-    description: the siblings to build, space separated, in dependency order (each builds on the ones before it)
-    required: true
+    description: the siblings to build, space separated, in dependency order (each builds on the ones before it); empty reads file
+    default: ''
+  file:
+    description: the checkout's list of the siblings, read when repos is empty
+    default: .github/wave-deps
   branch:
     description: the wave branch; a pull request into it, or a push to it, turns the action on
     default: dedupe/all
@@ -55,6 +57,7 @@ runs:
         WHEN: ${{ inputs.when }}
         BRANCH: ${{ inputs.branch }}
         REPOS: ${{ inputs.repos }}
+        FILE: ${{ inputs.file }}
         EVENT: ${{ github.event_name }}
         BASE_REF: ${{ github.base_ref }}
         REF: ${{ github.ref }}
@@ -71,9 +74,13 @@ runs:
           *) echo "::error::wave-deps: when is auto, always or never, not '$WHEN'"; exit 1 ;;
         esac
         if [ "$active" = true ] && [ -z "$(tr -d '[:space:]' <<<"$REPOS")" ]; then
-          echo "::error::wave-deps: no sibling named in repos"; exit 1
+          list=${GITHUB_WORKSPACE:-.}/$FILE
+          [ -f "$list" ] || { echo "::error::wave-deps: no repos given and no $FILE in the checkout"; exit 1; }
+          REPOS=$(sed 's/#.*//' "$list" | tr -s '[:space:]' ' ' | sed 's/^ //; s/ $//')
+          [ -n "$REPOS" ] || { echo "::error::wave-deps: $FILE names no sibling"; exit 1; }
         fi
         echo "active=$active" >> "$GITHUB_OUTPUT"
+        echo "repos=$(tr -s '[:space:]' ' ' <<<"$REPOS" | sed 's/^ //; s/ $//')" >> "$GITHUB_OUTPUT"
         if [ "$active" = true ]; then
           echo "wave-deps: a $BRANCH run; building $REPOS from $BRANCH"
         else
@@ -86,7 +93,7 @@ runs:
       env:
         BRANCH: ${{ inputs.branch }}
         OWNER: ${{ inputs.owner }}
-        REPOS: ${{ inputs.repos }}
+        REPOS: ${{ steps.decide.outputs.repos }}
       run: |
         set -euo pipefail
         # the tools the build and the cache need, before the cache is restored
@@ -122,7 +129,7 @@ runs:
         PREFIX: ${{ inputs.prefix }}
         BRANCH: ${{ inputs.branch }}
         OWNER: ${{ inputs.owner }}
-        REPOS: ${{ inputs.repos }}
+        REPOS: ${{ steps.decide.outputs.repos }}
         WAVE_DEPS_SHAS: ${{ steps.key.outputs.shas }}
       run: '"$GITHUB_ACTION_PATH/build.sh" "$PREFIX" "$BRANCH" "$OWNER" $REPOS'
 
