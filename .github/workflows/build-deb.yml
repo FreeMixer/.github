@@ -257,9 +257,11 @@ jobs:
     env:
       DO_PUBLISH: ${{ inputs.publish && (inputs.source-ref != '' || github.ref_type == 'tag') }}
     steps:
+      # <suite>-<arch> only: artifacts outlive their attempt, and the published copies an earlier attempt uploaded
+      # as -debs-signed are flat, which publish-tree.sh refuses (tests/deb-rerun-layout.sh)
       - uses: actions/download-artifact@v4
         with:
-          pattern: ${{ inputs.package-name }}-debs-*
+          pattern: ${{ inputs.package-name }}-debs-*-*
           merge-multiple: true
           path: collected
 
@@ -325,7 +327,7 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          pattern: ${{ inputs.package-name }}-debs-*
+          pattern: ${{ inputs.package-name }}-debs-*-*
           merge-multiple: true
           path: collected
 
