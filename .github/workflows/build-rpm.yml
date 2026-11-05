@@ -97,6 +97,10 @@ on:
         type: boolean
         default: true
         description: 'Attach the signed RPMs to the GitHub release of the tag'
+      republish:
+        type: boolean
+        default: false
+        description: 'Let the release go out over a version the channel already serves. Off, the preflight refuses it (a moved old tag re-running its release); on only to finish a partial publish.'
       verify-install:
         type: boolean
         default: true
@@ -152,6 +156,8 @@ jobs:
           publish: ${{ inputs.publish }}
           tag: ${{ inputs.source-ref }}
           target: ${{ inputs.target-repo }}
+          packages: ${{ inputs.binary-names || inputs.package-name }}
+          republish: ${{ inputs.republish }}
           gpg-key: ${{ secrets.OPENMIXER_PACKAGES_SIGNING_KEY }}
           pages-token: ${{ secrets.PAGES_TOKEN }}
 
@@ -270,6 +276,8 @@ jobs:
   publish:
     name: Sign and publish
     needs: build
+    outputs:
+      commit: ${{ steps.publish.outputs.commit }}
     runs-on: ${{ startsWith(github.event_name, 'pull_request') && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || inputs.runner }}
     timeout-minutes: 30
     container:
@@ -290,7 +298,8 @@ jobs:
           merge-multiple: true
           path: collected
 
-      - uses: FreeMixer/.github/.github/actions/publish-rpms@v1
+      - id: publish
+        uses: FreeMixer/.github/.github/actions/publish-rpms@v1
         with:
           rpm-dir: collected
           tag: ${{ inputs.source-ref || github.ref_name }}
@@ -359,11 +368,28 @@ jobs:
             gh release create "$TAG" signed/*.rpm --title "$TAG" --notes-file "$RUNNER_TEMP/release-notes.md" --repo "$GITHUB_REPOSITORY"
           fi
 
+  # Pages deploys the pushed commit on its own time, and five releases in a row make it slow. The wait is a job
+  # of its own so a slow deployment never fails the publish or holds back the GitHub release, whose assets come
+  # from the built files. It reads the Pages deployment status of the commit and fails, naming the deployment,
+  # after 30 minutes.
+  live:
+    name: Pages deployment
+    needs: publish
+    if: ${{ !cancelled() && needs.publish.result == 'success' && needs.publish.outputs.commit != '' }}
+    runs-on: ${{ startsWith(github.event_name, 'pull_request') && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || inputs.runner }}
+    timeout-minutes: 40
+    steps:
+      - uses: FreeMixer/.github/.github/actions/pages-live@v1
+        with:
+          channel: ${{ inputs.target-repo }}
+          commit: ${{ needs.publish.outputs.commit }}
+          token: ${{ secrets.PAGES_TOKEN }}
+
   # The last proof: the version the tag names installs from the channel, in a fedora that holds nothing else.
   # Pages serves the push a little late, so the check retries before it calls the release broken.
   verify:
     name: Install check (fc${{ matrix.fedora }}, ${{ matrix.arch }})
-    needs: [publish, release]
+    needs: [publish, release, live]
     if: ${{ !cancelled() && needs.publish.result == 'success' && inputs.publish && inputs.verify-install && (inputs.source-ref != '' || github.ref_type == 'tag') }}
     runs-on: ${{ matrix.arch == 'aarch64' && 'ubuntu-24.04-arm' || startsWith(github.event_name, 'pull_request') && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || (inputs.runner != 'ubuntu-latest' && inputs.runner) || vars.OMX_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 30
@@ -405,7 +431,7 @@ jobs:
   # calls this workflow). Without it the step fails loudly with an error naming the missing permission.
   report-failure:
     name: Report a failed release
-    needs: [preflight, build, publish, release, verify]
+    needs: [preflight, build, publish, release, live, verify]
     if: ${{ always() && inputs.publish && (inputs.source-ref != '' || github.ref_type == 'tag') && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
     runs-on: ${{ startsWith(github.event_name, 'pull_request') && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || inputs.runner }}
     timeout-minutes: 5
