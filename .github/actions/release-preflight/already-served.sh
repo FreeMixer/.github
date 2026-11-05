@@ -7,6 +7,9 @@
 #   rpm/**/<name>-<version>-<release>.<arch>.rpm      deb/**/<name>_<version>[-<revision>]_<arch>.deb
 # Names may be globs. A tag that is not v<version> names no version and passes. KIND=rpm or KIND=deb reads only that
 # half of the tree (a release's deb job must not be refused by the rpms its own rpm job just published); empty reads both.
+# RELEASES, space separated, names the Fedora releases (rpm/fedora/<release>/) or Debian suites (deb/debian/<suite>/)
+# the release publishes into; a file under another release or suite is not this release's, so an fc44 build of the
+# version does not refuse its fc45 publish. A file outside those trees is read for every release; empty reads all.
 set -uo pipefail
 tag=$1; shift
 ver=${tag#v}
@@ -19,6 +22,13 @@ while IFS= read -r path; do
     deb/*.deb) [ "${KIND:-}" != rpm ] || continue ;;
     *) continue ;;
   esac
+  if [ -n "${RELEASES:-}" ]; then
+    case $path in
+      rpm/fedora/*/*|deb/debian/*/*)
+        rel=${path#*/*/}; rel=${rel%%/*}
+        case " $RELEASES " in *" $rel "*) ;; *) continue ;; esac ;;
+    esac
+  fi
   for name in "$@"; do
     # shellcheck disable=SC2254 # name is a glob on purpose
     case $base in

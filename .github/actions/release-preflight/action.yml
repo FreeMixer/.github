@@ -30,6 +30,12 @@ inputs:
       channel, so the deb job of a release is not refused by the rpms its own rpm job published a minute earlier.
       Empty reads both.
     default: ''
+  releases:
+    description: >-
+      the Fedora releases (rpm) or Debian suites (deb) this release publishes into, space separated; the
+      already-served check reads only those trees, so a version served for fc44 does not refuse its first fc45
+      publish. Empty reads every release.
+    default: ''
   republish:
     description: "'true' lets a release go out again over a version the channel already serves (a rerun that must finish a partial publish)"
     default: 'false'
@@ -56,6 +62,7 @@ runs:
         PACKAGES: ${{ inputs.packages }}
         REPUBLISH: ${{ inputs.republish }}
         KIND: ${{ inputs.kind }}
+        RELEASES: ${{ inputs.releases }}
       run: |
         set -euo pipefail
         if [ "$PUBLISH" != true ] || { [ "$REQUIRE_TAG" = true ] && [ "$REF_TYPE" != tag ]; }; then
