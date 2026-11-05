@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # Build the Debian build dependencies of the FreeMixer packages.
 #
 #   build.sh <output dir> <name>...      name: a directory here holding its debian/ files

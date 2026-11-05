@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 name: mod-host-protocol DEBs
 
 # Builds libmod-host-protocol0 and libmod-host-protocol-dev from packaging/mod-host, the same source and patches

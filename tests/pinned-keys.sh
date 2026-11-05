@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # The fingerprints the channel's key files are held to (.github/actions/import-gpg-key/pinned-fingerprints.txt).
 # The committed list is well formed; every reader of a served key file (channel-keys.sh pinned and check, and
 # openmixer-release's build.sh through it) refuses a file holding a key the list does not pin and passes one that

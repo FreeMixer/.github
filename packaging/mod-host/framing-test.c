@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * What an installed libmod-host-protocol does with the bytes a client sends (mod-audio/mod-host#113).
  *

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 name: release-npm
 # A package's npm publish with trusted publishing: the tag names the version, the caller's proof runs, then npm
 # publishes with provenance. A run that is not on a tag is a dry run (npm publish --dry-run).

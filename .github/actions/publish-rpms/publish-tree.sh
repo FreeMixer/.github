@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # Add RPMs to a dnf tree laid out as <tree>/fedora/<releasever>/<arch>/ (sources in SRPMS), sign the ones
 # this run placed, regenerate the metadata of every directory that holds packages (with an updateinfo.xml of one
 # advisory per release, made from the packages' %changelog) and sign it.

@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # Build the RPMs of a tree from a tarball of it.
 #
 #   build-rpm.sh [-C <tree>] [-t <release tag>] [-n] <output dir>

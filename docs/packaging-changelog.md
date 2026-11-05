@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later
+     Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com> -->
 # Package descriptions and changelogs
 
 Every FreeMixer package has a description that says what it does for a musician or an engineer, and a

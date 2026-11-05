@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later
+     Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com> -->
 # Release operations
 
 What a caller of `build-rpm.yml` and `build-deb.yml` must grant, and how the parts that only run on a real

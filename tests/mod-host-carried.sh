@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # The patches of packaging/mod-host apply to the upstream commit of the spec, the tests they bring pass, and the
 # installed protocol library carries mod-audio/mod-host#113 and takes 65 commands. Then each fix is taken out again
 # and the check that guards it must fail: without the src/ part of #113 or of the protocol-max-commands patch

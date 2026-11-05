@@ -1,5 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
 # commit-message-check.sh: fail when a commit message carries an attribution line, when its author or committer
 # name or email matches the identity pattern, or when a merge subject names a branch under claude/.
 #

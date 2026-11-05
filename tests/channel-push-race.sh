@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # The push of the channel-push action against a remote that loses the race once: another publish lands on the
 # branch between our commit and our push. With a rebuild command the action resets to the new tip, assembles
 # the tree again, signs a new commit and pushes it: the remote ends with both publishes. Without one (the

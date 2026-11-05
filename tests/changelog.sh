@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # changelog.sh against a throwaway git repository: the notes, the %changelog entry and debian/changelog it
 # makes from commit subjects, and that it never reads a CHANGELOG.md.
 #

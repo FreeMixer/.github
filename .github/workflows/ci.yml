@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 name: ci
 
 # The publish scripts and the key import, exercised the way a release uses them, with throwaway keys: a
@@ -228,8 +230,8 @@ jobs:
 
   # The checks repositories run from here: dependency floors from one packaging/deps.txt, no tracked file pointing
   # into a private repository, and a licence header wherever a format can hold one. Each engine proves itself red on
-  # every planted drift. The private-refs action then reads this tree, which is its clean control; the other two read
-  # planted trees only, because this repository declares no floors and its files carry no headers.
+  # every planted drift. The private-refs and spdx-check actions then read this tree, which is their clean control;
+  # deps-render reads planted trees only, because this repository declares no floors.
   repo-checks:
     name: deps-render, private-refs-check and spdx-check engines, sabotaged
     runs-on: ubuntu-latest
@@ -238,4 +240,4 @@ jobs:
       - uses: actions/checkout@v4
       - run: .github/actions/deps-render/render.sh --self-test
       - uses: ./.github/actions/private-refs-check
-      - run: .github/actions/spdx-check/check.sh --self-test
+      - uses: ./.github/actions/spdx-check

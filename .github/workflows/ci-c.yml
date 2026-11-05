@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 name: ci-c
 # A C library's checks in a distribution container: its build tools, optionally the OpenMixer channel and what it
 # installs from it, then its commands.

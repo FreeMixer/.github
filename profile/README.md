@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later
+     Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com> -->
 <img src="openmixer-logo.svg" alt="openmixer" width="330">
 
 # OpenMixer

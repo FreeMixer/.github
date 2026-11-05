@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # wave-deps' version bump on throwaway repositories: a tree ahead of its last v<version> tag at that version is built as
 # the next minor, written in every place these repositories write it; a tree at its tag, and one whose version already
 # moved past its tag, keep their own. And the action's switch: on for a pull request into the wave branch or a push to

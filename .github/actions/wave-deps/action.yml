@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 name: wave-deps
 description: On a run for the wave branch, build the named siblings from that branch and prefer them over the channel
 

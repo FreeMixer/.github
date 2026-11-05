@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 /*
  * Who reaches the ports an installed libmod-host-protocol opens (the carried bind-address patch).
  *
