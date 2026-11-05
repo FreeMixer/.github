@@ -26,8 +26,8 @@ check "the spec builds the pinned commit" test -n "$pin" -a "$pin" = "$commit"
 check "the DEB changelog names the pinned commit" grep -q "\.${pin:0:7}-" "$deb/changelog"
 check "the version is 1.4.0 or later" test "$(printf '%s\n1.4.0\n' "$version" | sort -V | head -n1)" = 1.4.0
 check "no patch is carried" test -z "$(ls "$pkg"/*.patch "$pkg"/overlay/*.patch 2>/dev/null)" -a -z "$(grep -i '^Patch' "$pkg/surge-xt.spec")"
-check "the RPM installs the CLAP to /usr/lib/clap" grep -qx '/usr/lib/clap/Surge XT.clap' "$pkg/surge-xt.spec"
-check "the RPM installs the LV2 to /usr/lib/lv2" grep -qx '/usr/lib/lv2/Surge XT.lv2/' "$pkg/surge-xt.spec"
+check "the RPM installs the CLAP to /usr/lib/clap" grep -qx '"/usr/lib/clap/Surge XT.clap"' "$pkg/surge-xt.spec"
+check "the RPM installs the LV2 to /usr/lib/lv2" grep -qx '"/usr/lib/lv2/Surge XT.lv2/"' "$pkg/surge-xt.spec"
 check "the DEB installs the CLAP to /usr/lib/clap" grep -qx 'usr/lib/clap/\*.clap' "$deb/surge-xt-clap.install"
 check "the DEB installs the LV2 to /usr/lib/lv2" grep -qx 'usr/lib/lv2/\*.lv2' "$deb/surge-xt-lv2.install"
 check "nothing is installed to /usr/local or a multiarch directory" \
