@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 name: mod-host-protocol
-description: Build libmod-host-protocol from mod-host and the patches FreeMixer carries, and install it into a prefix
+description: Build libmod-host-protocol from the FreeMixer fork of mod-host and install it into a prefix
 
-# One way to get the protocol library for every FreeMixer host repository's source build: mod-host laid out as
-# packaging/mod-host/mod-host.spec builds it, the same code as the published packages. The installed library is
-# checked for mod-audio/mod-host#113. The caller has git, gcc, make, python3 and pkg-config.
+# One way to get the protocol library for every FreeMixer host repository's source build: the fork at the commit
+# .github/pins.txt names, the same source as the published packages. The installed library is checked by
+# checks/framing-test.sh. The caller has git, gcc, make, python3 and pkg-config.
 
 inputs:
   prefix:
@@ -24,8 +24,7 @@ runs:
         PREFIX: ${{ inputs.prefix }}
       run: |
         set -euo pipefail
-        carried=$GITHUB_ACTION_PATH/../../../packaging/mod-host
-        "$carried/prepare-source.sh" mod-host
+        "$GITHUB_ACTION_PATH/fetch-source.sh" mod-host
         make -C mod-host lib
         make -C mod-host install-lib PREFIX="$PREFIX" LIBDIR="$PREFIX/lib"
         {
@@ -34,4 +33,4 @@ runs:
           echo "LD_LIBRARY_PATH=$PREFIX/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
         } >> "$GITHUB_ENV"
         PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig" pkg-config --modversion mod-host-protocol
-        "$carried/framing-test.sh" "$PREFIX"
+        "$GITHUB_ACTION_PATH/checks/framing-test.sh" "$PREFIX"
