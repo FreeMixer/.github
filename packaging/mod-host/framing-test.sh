@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # Build framing-test.c and commands-test.c against the libmod-host-protocol pkg-config finds and run them: exit 0
 # when the library carries mod-audio/mod-host#113 and takes more than 64 commands (the protocol-max-commands patch),
 # 1 when it does not, and when the ports it opens by default are reached from any address but 127.0.0.1 (the carried

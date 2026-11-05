@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # The reusable workflows: each is callable (workflow_call), names every input it reads, and calls this repository's
 # actions and workflows at v1, never at a branch; the no-local-copies check proves itself. A job whose runner the
 # caller can choose (its runs-on or runner input, or a repository variable) falls back to a GitHub-hosted runner for a

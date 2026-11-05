@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+name: public-layout-check
+description: Fail when a public repository keeps a dated document, a dated folder, or a folder of evidence or notes
+
+# A public repository holds code, data and the documents a user or developer reads; the record of how work went belongs
+# in the project's records. The check is proven first on planted trees, with a sabotage arm, then reads the caller's
+# checkout. The caller has checked the repository out.
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        "$GITHUB_ACTION_PATH/check.sh" --self-test
+        "$GITHUB_ACTION_PATH/check.sh" "$GITHUB_WORKSPACE"

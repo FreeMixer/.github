@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # live-check.sh <channel dir> <what> <site url> <channel repo>
 #
 # After a push, wait until the live site serves what the pushed commit added. GitHub Pages cancels a deployment

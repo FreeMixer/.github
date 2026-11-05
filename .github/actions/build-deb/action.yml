@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 name: build-deb
 description: Build the DEBs of a checked-out tree from its debian/ directory, lint them
 

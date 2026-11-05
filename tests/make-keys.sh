@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # Two throwaway release keys in a scratch keyring, written armored to <dir>/old.sec and <dir>/new.sec:
 #   old  a full secret key behind a passphrase (the shape of the key the channel started with)
 #   new  a certify-only primary whose signing subkey is exported alone, without a passphrase (the shape

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # The package that adds the OpenMixer repository to dnf, as rpmfusion-free-release does for RPM Fusion: a change
 # of baseurl or key reaches every machine as an update of this package. Source1 is the key file the channel
 # serves at rpm/RPM-GPG-KEY-openmixer, fetched at build time (build.sh); it is not kept in this repository.

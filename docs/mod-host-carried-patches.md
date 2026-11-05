@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later
+     Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com> -->
 # mod-host: the patches we carry until audinux ships them
 
 plugin-hostd and omx-clap-host link `libmod-host-protocol.so.0`, the socket and protocol library of mod-host. The

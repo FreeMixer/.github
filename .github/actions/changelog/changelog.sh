@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # Git history is the changelog: no file is kept by hand. Everything a user sees is made from the commit
 # subjects between the previous tag and the release.
 #

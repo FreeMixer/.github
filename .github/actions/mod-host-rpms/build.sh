@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # Build the mod-host RPMs, with mod-host-protocol and mod-host-protocol-devel, from packaging/mod-host of this
 # repository into $1: the audinux spec with the upstream pull requests it carries, until audinux ships them.
 # Runs as root in a Fedora container. RELEASE, when set, replaces the spec's Release (the dist tag is kept).

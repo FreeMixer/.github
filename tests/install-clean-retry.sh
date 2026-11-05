@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # The install-clean step retries dnf: a mirror error on the first attempts is survived, a real error fails the third
 # attempt and nothing else is retried past it. The step is read out of the action file itself and run with a dnf that
 # fails on cue.

@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # The RPM half of the channel publish: two releases of one package go through publish-tree.sh and the
 # repository answers `dnf updateinfo` with the changelog text of each. Needs a Fedora container with
 # rpm-build, createrepo_c, python3-rpm and dnf.

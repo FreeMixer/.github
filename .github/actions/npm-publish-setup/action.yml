@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 name: npm-publish-setup
 description: Node and an npm that can publish with trusted publishing (npm 11.5.1 or later)
 

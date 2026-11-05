@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # A source package handed to publish-tree.sh lands in fedora/<release>/SRPMS/ next to the binaries' tree, a second
 # publish keeps it, and its directory gets metadata. Needs a Fedora container with rpm-build, createrepo_c,
 # python3-rpm and dnf.

@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # Build openmixer-release, the package that adds the OpenMixer repository, with the key file the channel serves.
 #
 #   build.sh rpm|deb <key file> <output dir>

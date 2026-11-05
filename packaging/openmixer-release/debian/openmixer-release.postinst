@@ -1,4 +1,6 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # The package carries an apt source per Debian release; /etc/apt/sources.list.d/openmixer.sources links the one
 # of this system's VERSION_CODENAME, so an upgrade of the package changes the source it points at. Ubuntu takes the
 # trixie source (the channel serves no Ubuntu tree; its packages are Architecture: all or build on trixie's

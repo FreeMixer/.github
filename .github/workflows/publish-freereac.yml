@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 name: Publish FreeREAC release
 
 # Publishes a FreeREAC release to the OpenMixer channel. The channel is signed by the OpenMixer Release

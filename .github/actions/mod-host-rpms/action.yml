@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 name: mod-host-rpms
 description: Build the mod-host, mod-host-protocol and mod-host-protocol-devel RPMs and install them
 

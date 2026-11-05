@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # Lay out mod-host's source the way mod-host.spec builds it: the upstream commit the spec names, with the spec's
 # patches applied in the spec's order and without fuzz. The DEBs and the source builds of the protocol library
 # use this, so every package carries the same code as the RPMs.

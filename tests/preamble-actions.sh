@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # The tag-names-version step script, run the way the action runs it: a matching tag passes, a mismatch fails,
 # a branch run never fails, and an empty version is refused. The step is read out of the action file itself.
 set -euo pipefail
