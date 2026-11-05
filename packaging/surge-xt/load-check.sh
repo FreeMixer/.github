@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # The installed Surge XT loads in the hosts' own scanners: omx-clap-scan (omx-clap-host's) lists the CLAP with
 # its id and a version of 1.4.0 or later, and lv2ls and lv2info (lilv) read the LV2 bundle. A scanner that is
 # not installed fails the check: a package that was not loaded was not tested.

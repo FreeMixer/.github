@@ -1,4 +1,6 @@
 #!/usr/bin/make -f
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 
 # the build and the install are surge-xt-build.sh, which packaging/surge-xt/surge-xt.spec runs too; it is laid on
 # the source root with the rest of packaging/surge-xt/overlay

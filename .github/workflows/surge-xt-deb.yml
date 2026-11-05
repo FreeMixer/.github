@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 name: Surge XT DEBs
 
 # Builds surge-xt, surge-xt-data, surge-xt-clap and surge-xt-lv2, which Debian does not package, from

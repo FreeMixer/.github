@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 name: Surge XT RPMs
 
 # Builds Surge XT (surge-xt, surge-xt-data, surge-xt-clap, surge-xt-lv2) from packaging/surge-xt at the commit of

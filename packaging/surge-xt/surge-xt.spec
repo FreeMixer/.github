@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # Surge XT, the hybrid synthesizer of the Surge Synth Team, as the CLAP and the LV2 that Zynthian and the MOD
 # hosts load, built for x86_64 and aarch64 from the commit of .github/pins.txt. Neither Fedora nor Debian package it.
 #

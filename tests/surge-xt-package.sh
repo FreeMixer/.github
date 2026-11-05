@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # The Surge XT package: the spec builds the commit pins.txt pins, at 1.4.0 or later and with no patch; the RPM and the
 # DEB install the CLAP to /usr/lib/clap and the LV2 to /usr/lib/lv2 and nothing to /usr/local; the load check passes
 # for a scanner that finds Surge XT 1.4.0 and fails for one that finds 1.3.4, for one that finds no plugin and for a

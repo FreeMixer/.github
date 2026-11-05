@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # Lay out Surge XT's source as the spec and the DEB build it: the upstream commit .github/pins.txt names, with every
 # submodule at the commit that commit records (a GitHub archive of the repository holds none of them, and Surge
 # does not build without JUCE, the CLAP wrapper and the sst libraries).

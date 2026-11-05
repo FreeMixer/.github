@@ -31,6 +31,7 @@ for name in "$@"; do
     [ -d "$packaging/$name/overlay" ] && cp "$packaging/$name/overlay/"* "$top/SOURCES/"
     if [ -x "$packaging/$name/make-source.sh" ]; then
         # a source that is not one archive of the commit (Surge XT's submodules): the package makes its own tarball
+        command -v git >/dev/null || dnf -y install --setopt=install_weak_deps=False git tar gzip
         "$packaging/$name/make-source.sh" "$top/checkout" "$top/SOURCES/$name-$pin.tar.gz"
     else
         spectool -g -C "$top/SOURCES" "$top/SPECS/$name.spec"
