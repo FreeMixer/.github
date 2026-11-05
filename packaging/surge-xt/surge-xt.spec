@@ -104,7 +104,7 @@ fi
 %{_datadir}/surge-xt/
 
 %files clap
-/usr/lib/clap/Surge XT.clap
+"/usr/lib/clap/Surge XT.clap"
 
 %files lv2
 /usr/lib/lv2/Surge XT.lv2/
