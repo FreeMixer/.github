@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # deps-render.sh: the dependency floors of a repository come from ONE file, packaging/deps.txt, and are
 # rendered into every place that states one: the RPM spec's Requires and BuildRequires, debian/control's
 # Build-Depends and Depends, and the release-tag variables of the workflows.

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 name: pugl and nanovg RPMs
 
 # Builds pugl and nanovg, which Fedora does not package, from packaging/pugl and packaging/nanovg at the commits of

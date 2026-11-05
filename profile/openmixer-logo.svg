@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later
+     Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com> -->
 <svg width="440" height="120" viewBox="0 0 440 120" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="openmixer">
   <rect x="0.5" y="0.5" width="439" height="119" rx="24" fill="#0b0e11" stroke="#2a323b"/>
 

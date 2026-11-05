@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # wave-deps' sibling lookup: a sibling whose wave branch is gone is released and skipped with a notice; one that cannot
 # be read fails the run; one with the branch is kept with its head. Runs the action's own `key` step against a stand-in
 # git, offline.

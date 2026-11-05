@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # SPDX-License-Identifier: Zlib
 # The build of NanoVG as the channel packages it (packaging/nanovg/nanovg.spec and the DEB both lay this file at the
 # top of the upstream source): src/nanovg.c as libnanovg.so.0, the headers under include/nanovg, a pkg-config file.

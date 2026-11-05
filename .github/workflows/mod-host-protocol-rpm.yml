@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 name: mod-host-protocol RPMs
 
 # Builds mod-host, mod-host-protocol, which carries libmod-host-protocol.so.0, and mod-host-protocol-devel from

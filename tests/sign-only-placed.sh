@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # A channel write must not become a signed package. The publish scripts pull the channel's tree, so a
 # package someone left in it reaches the run: an unsigned RPM, an RPM signed by a key the channel does not
 # serve, a .deb the signed index never listed, or one swapped under a listed name. Each makes the publish

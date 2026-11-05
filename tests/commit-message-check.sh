@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # The commit-message-check action: the checker reads a range, refuses an attributed commit, passes a clean one, and a
 # checker without its patterns is not a pass. The list beside the checker is the one list every repository reads.
 set -euo pipefail

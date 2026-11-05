@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # Install openmixer-release on a machine that holds no OpenMixer configuration, then install a package of the
 # channel through the repository it adds: the repository is named openmixer, its index verifies with the key
 # the package ships, and the package resolves from it.

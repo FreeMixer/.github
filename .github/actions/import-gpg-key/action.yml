@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 name: import-gpg-key
 description: Import a release signing key so gpg, rpmsign and apt-ftparchive signing run without a prompt
 

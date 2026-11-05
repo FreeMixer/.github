@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 name: Build DEB (reusable)
 
 # The Debian half of the release path of build-rpm.yml, for Raspberry Pi OS and Zynthian (Debian bookworm,

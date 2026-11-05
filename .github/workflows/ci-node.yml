@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 name: ci-node
 # A Node package's checks: Node, its install, an optional setup action of the caller's, then its commands.
 #

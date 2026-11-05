@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # private-refs-check.sh: a public repository's tracked files and commit messages state facts and never point into a
 # private repository: no private repository name, no private issue or pull request number, no private branch name or
 # file path, no name of a private specification file. They name no private machine or home directory and no tool

@@ -1,2 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # a build dependency, not uploaded to Debian
 clap-headers: initial-upload-closes-no-bugs

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 name: deps-render
 description: Hold a repository's dependency floors to its one packaging/deps.txt
 

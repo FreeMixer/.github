@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # live-check.sh of the channel-push action against a stub site: a curl that serves a directory and, on a POST to
 # the Pages builds endpoint of the REST API, "redeploys" it. It runs with a PATH that has no gh, as in the Debian
 # publish container. Arms: the site serves the push at once; the site lags until the Pages build is requested

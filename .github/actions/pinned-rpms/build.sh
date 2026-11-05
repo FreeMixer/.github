@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # Build the RPMs of the third-party libraries the channel packages from a pinned commit (pugl, nanovg), from
 # packaging/<name>/<name>.spec, into $1, and install them so the next one and a caller's build find them.
 #

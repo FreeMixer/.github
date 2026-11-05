@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # NanoVG, the vector drawing of the panel renderer's window (omx-panel docs/renderer.md), which neither Fedora nor
 # Debian package. Upstream ships a premake file and no library; overlay/meson.build, the same file the DEB builds
 # with, builds src/nanovg.c into libnanovg.so.0 and installs its headers, the GL backend headers among them, under

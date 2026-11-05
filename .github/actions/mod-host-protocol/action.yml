@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 name: mod-host-protocol
 description: Build libmod-host-protocol from mod-host and the patches FreeMixer carries, and install it into a prefix
 

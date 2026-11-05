@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 name: pinned-rpms
 description: Build and install the RPMs of the third-party libraries the channel packages from a pinned commit
 
