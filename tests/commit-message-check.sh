@@ -18,8 +18,34 @@ git commit -q --allow-empty -m "clean change"
 git commit -q --allow-empty -m "change" -m "Co-Authored""-By: Claude <noreply@anthro""pic.com>"
 if "$chk" main..HEAD >/dev/null; then fail "an attributed commit passed"; fi
 
+# identity: the author and committer of a commit are published like its message
+cn=Cla''ude; ae=noreply@anthro''pic.com; cl=cla''ude; an=anthro''pic
+ident() { # name email subject: one empty commit on a fresh topic branch, author = committer unless CN/CE are set
+  git checkout -q main; git branch -q -D t 2>/dev/null || true; git checkout -q -b t
+  GIT_AUTHOR_NAME="$1" GIT_AUTHOR_EMAIL="$2" GIT_COMMITTER_NAME="${CN:-$1}" GIT_COMMITTER_EMAIL="${CE:-$2}" \
+    git commit -q --allow-empty -m "$3"
+}
+ident "Pau Aliagas" linuxnow@gmail.com "ordinary change"
+CE=commits@openmixer.org ident "Pau Aliagas" linuxnow@gmail.com "ordinary change"
+"$chk" main..HEAD >/dev/null || fail "ordinary author and committer were refused"
+ident GitHub noreply@github.com "Merge pull request #393 from FreeMixer/hostd-385-fix"
+"$chk" main..HEAD >/dev/null || fail "a GitHub merge was refused"
+ident "$cn" "$ae" "ordinary change"
+if "$chk" main..HEAD >/dev/null; then fail "a commit authored by $cn passed"; fi
+CN=$cn CE=$ae ident "Pau Aliagas" linuxnow@gmail.com "ordinary change"
+if "$chk" main..HEAD >/dev/null; then fail "a commit committed by $cn passed"; fi
+ident "Pau Aliagas" "bot@$an.com" "ordinary change"
+if "$chk" main..HEAD >/dev/null; then fail "a commit with an $an.com address passed"; fi
+ident GitHub noreply@github.com "Merge pull request #393 from FreeMixer/${cl}/hostd-385-fix"
+if "$chk" main..HEAD >/dev/null; then fail "a merge of a ${cl}/ branch passed"; fi
+ident GitHub noreply@github.com "Merge branch '${cl}/x' into main"
+if "$chk" main..HEAD >/dev/null; then fail "a local merge of a ${cl}/ branch passed"; fi
+ident GitHub noreply@github.com "Merge pull request #5 from FreeMixer/fix/.${cl}-dir-note"
+"$chk" main..HEAD >/dev/null || fail "a branch that only mentions .${cl} was refused"
+git checkout -q main
+
 # sabotage: the same commit against an empty pattern list must not read as a hit, and a missing list is exit 2
-echo '{"markers": []}' > "$tmp/empty.json"
+echo '{"markers": [], "identity": {"pattern": "(?!)"}, "merge-branch": {"pattern": "(?!)"}}' > "$tmp/empty.json"
 COMMIT_MESSAGE_PATTERNS="$tmp/empty.json" "$chk" main..HEAD >/dev/null || fail "sabotage setup: empty list should find nothing"
 echo "sabotage: the empty list is blind, as the selftest expects"
 rc=0; COMMIT_MESSAGE_PATTERNS="$tmp/none.json" "$chk" main..HEAD >/dev/null 2>&1 || rc=$?

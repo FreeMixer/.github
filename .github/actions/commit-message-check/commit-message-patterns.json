@@ -10,20 +10,20 @@
    "pattern": "(?:🤖[^\\S\\r\\n]*)?(?:Generated|Made)[^\\S\\r\\n]+(?:with|by)[^\\S\\r\\n]+\\[?Claude(?:[^\\S\\r\\n]+Code)?\\]?(?:\\([^)\\s]*\\))?"
   },
   {
-   "name": "co-authored\u002dby",
-   "pattern": "Co-Authored\u002dBy:[^\\S\\r\\n]*Claude\\b[^\\r\\n<`]*(?:<[^>\\r\\n]*>)?"
+   "name": "co-authored-by",
+   "pattern": "Co-Authored-By:[^\\S\\r\\n]*Claude\\b[^\\r\\n<`]*(?:<[^>\\r\\n]*>)?"
   },
   {
    "name": "ai-co-author",
-   "pattern": "Co-Authored\u002dBy:[^\\S\\r\\n]*(?:Anthropi\u0063|OpenAI|ChatGPT|Copilot|Gemini|Codex|Cursor|Aider|Devin)\\b[^\\r\\n<`]*(?:<[^>\\r\\n]*>)?"
+   "pattern": "Co-Authored-By:[^\\S\\r\\n]*(?:Anthropic|OpenAI|ChatGPT|Copilot|Gemini|Codex|Cursor|Aider|Devin)\\b[^\\r\\n<`]*(?:<[^>\\r\\n]*>)?"
   },
   {
    "name": "ai-co-author-model",
-   "pattern": "^[^\\S\\r\\n]*Co-Authored\u002dBy:[^\\S\\r\\n]*(?:GitHub[^\\S\\r\\n]+Copilot|Opus|Sonnet|Haiku|Fable|GPT)\\b[^\\r\\n<`]*(?:<[^>\\r\\n]*>)?"
+   "pattern": "^[^\\S\\r\\n]*Co-Authored-By:[^\\S\\r\\n]*(?:GitHub[^\\S\\r\\n]+Copilot|Opus|Sonnet|Haiku|Fable|GPT)\\b[^\\r\\n<`]*(?:<[^>\\r\\n]*>)?"
   },
   {
    "name": "ai-assisted-by",
-   "pattern": "^[^\\S\\r\\n]*(?:Assisted|Generated)-By:[^\\S\\r\\n]*(?:Claude|Anthropi\u0063|OpenAI|ChatGPT|(?:GitHub[^\\S\\r\\n]+)?Copilot|Gemini|Codex|Cursor|Aider|Devin|Opus|Sonnet|Haiku|Fable|GPT)\\b[^\\r\\n<`]*(?:<[^>\\r\\n]*>)?"
+   "pattern": "^[^\\S\\r\\n]*(?:Assisted|Generated)-By:[^\\S\\r\\n]*(?:Claude|Anthropic|OpenAI|ChatGPT|(?:GitHub[^\\S\\r\\n]+)?Copilot|Gemini|Codex|Cursor|Aider|Devin|Opus|Sonnet|Haiku|Fable|GPT)\\b[^\\r\\n<`]*(?:<[^>\\r\\n]*>)?"
   },
   {
    "name": "anthropi\u0063-noreply",
@@ -34,8 +34,16 @@
    "pattern": "Claude-Session:[^\\S\\r\\n]*[^\\s`]*"
   },
   {
-   "name": "claude\u002eai/code",
+   "name": "claude.ai/code",
    "pattern": "\\[[^\\]\\r\\n]*\\]\\([^\\S\\r\\n]*<?https?://claude\\.ai/code[^)\\s]*>?[^\\S\\r\\n]*\\)|<?https?://claude\\.ai/code\\b[^\\s)>`]*>?"
   }
- ]
+ ],
+ "identity": {
+  "comment": "Matched against the author and committer name and email of each commit (Python re, IGNORECASE).",
+  "pattern": "anthropi\u0063|claude"
+ },
+ "merge-branch": {
+  "comment": "Matched against the subject of a merge commit: a branch or pull request head under claude/.",
+  "pattern": "(?:^|[\\s'\"/])claude/"
+ }
 }
