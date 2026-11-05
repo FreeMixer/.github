@@ -124,6 +124,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: tests/updateinfo.sh
       - run: tests/srpm-publish.sh
+      - run: tests/every-arch-dir-repodata.sh
 
   deb-changelog:
     name: apt changelog from the published tree
