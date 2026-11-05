@@ -1,0 +1,23 @@
+#!/usr/bin/make -f
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+
+# the build and the install are surge-xt-build.sh, which packaging/surge-xt/surge-xt.spec runs too; it is laid on
+# the source root with the rest of packaging/surge-xt/overlay
+
+%:
+	dh $@
+
+override_dh_auto_configure override_dh_auto_test:
+
+override_dh_auto_build:
+	SURGE_JOBS=$(shell nproc) ./surge-xt-build.sh build $(CURDIR) $(CURDIR)/build
+
+override_dh_auto_install:
+	./surge-xt-build.sh install $(CURDIR) $(CURDIR)/build $(CURDIR)/debian/tmp
+
+# a JUCE plugin is as big as its debug symbols, and nothing links to it: no symbols package
+override_dh_dwz:
+
+override_dh_strip:
+	dh_strip --no-automatic-dbgsym

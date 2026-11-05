@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+# published from a pinned commit, not uploaded to Debian: no bug to close
+surge-xt-clap: initial-upload-closes-no-bugs
+# JUCE carries libpng and tinyxml inside the plugin, so that one file loads in any host whatever the host links
+surge-xt-clap: embedded-library libpng *
+surge-xt-clap: embedded-library tinyxml *

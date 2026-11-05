@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+Source: surge-xt
+Section: sound
+Priority: optional
+Maintainer: Pau Aliagas <linuxnow@gmail.com>
+Build-Depends: debhelper-compat (= 13), cmake (>= 3.22), ninja-build, g++, pkgconf, libasound2-dev, libjack-jackd2-dev,
+ libx11-dev, libxrandr-dev, libxinerama-dev, libxcursor-dev, libxext-dev, libfreetype-dev, libfontconfig-dev,
+ libcurl4-openssl-dev, libcairo2-dev, libxkbcommon-x11-dev, libxcb-cursor-dev, libxcb-keysyms1-dev,
+ libxcb-util-dev, libgl-dev
+Standards-Version: 4.6.2
+Homepage: https://surge-synthesizer.github.io/
+Rules-Requires-Root: no
+
+Package: surge-xt
+Section: metapackages
+Architecture: any
+Depends: surge-xt-clap (= ${binary:Version}), surge-xt-lv2 (= ${binary:Version}), ${misc:Depends}
+Description: hybrid synthesizer, CLAP and LV2 plugins
+ Surge XT is a hybrid synthesizer: three oscillators per scene with
+ wavetable, FM, ring modulation and the classic waveforms, two filters, a
+ modulation matrix, and effects. This package installs both of its plugin
+ formats.
+
+Package: surge-xt-data
+Architecture: all
+Multi-Arch: foreign
+Depends: ${misc:Depends}
+Description: factory patches, wavetables and skins of Surge XT
+ The data both Surge XT plugins read at start: the factory patches, the
+ wavetables, the tuning files and the skins, in /usr/share/surge-xt.
+
+Package: surge-xt-clap
+Architecture: any
+Depends: surge-xt-data (= ${source:Version}), ${shlibs:Depends}, ${misc:Depends}
+Description: Surge XT as a CLAP plugin
+ Surge XT as a CLAP instrument, installed in /usr/lib/clap where CLAP hosts,
+ omx-clap-host among them, look.
+
+Package: surge-xt-lv2
+Architecture: any
+Depends: surge-xt-data (= ${source:Version}), ${shlibs:Depends}, ${misc:Depends}
+Description: Surge XT as an LV2 plugin
+ Surge XT as an LV2 instrument, installed in /usr/lib/lv2 where LV2 hosts
+ look.
