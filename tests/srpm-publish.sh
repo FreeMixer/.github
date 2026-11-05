@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # A source package handed to publish-tree.sh lands in fedora/<release>/SRPMS/ next to the binaries' tree, a second
-# publish keeps it, and its directory gets metadata. Needs a Fedora container with rpm-build, createrepo_c,
-# python3-rpm and dnf.
+# publish keeps it, and its directory gets metadata; and record-srpm.sh records every source package a publish
+# served, one per Fedora release of the matrix (the mod-host publish of 0.10.9 built fc44 and fc45 and the record
+# read the two as one path). Needs a Fedora container with rpm-build, createrepo_c, python3-rpm and dnf.
 #
 #   tests/srpm-publish.sh
 set -euo pipefail
@@ -48,3 +49,22 @@ again=$("$here/.github/actions/publish-rpms/publish-tree.sh" tree rpms)
 grep -q "^kept   $srpm" <<<"$again" || { echo "FAIL: the second publish did not keep $srpm" >&2; exit 1; }
 test "$(sha256sum "tree/fedora/44/SRPMS/$srpm" | cut -d' ' -f1)" = "$sum"
 echo "ok   $srpm filed under fedora/44/SRPMS/ with metadata, kept on a second publish"
+
+# the record of a publish that built two Fedora releases: one line per source package, each with its own sha256
+record=$here/.github/actions/publish-rpms/record-srpm.sh
+mkdir -p signed top45/SPECS && cp top/SPECS/demo.spec top45/SPECS/
+rpmbuild --define "_topdir $work/top45" --define 'dist .fc45' -bs top45/SPECS/demo.spec >/dev/null 2>&1
+cp top/SRPMS/*.src.rpm top45/SRPMS/*.src.rpm signed/
+test "$(ls signed/*.src.rpm | wc -l)" = 2
+out=$("$record" signed demo) || { echo "FAIL: record-srpm.sh is red with two source packages" >&2; exit 1; }
+for rel in 44 45; do
+    f=demo-1.0.0-1.fmx.fc$rel.src.rpm
+    grep -q "^- fedora $rel: https://www.openmixer.org/rpm/fedora/$rel/SRPMS/$f\$" <<<"$out" \
+        || { echo "FAIL: the record does not name fedora/$rel/SRPMS/$f" >&2; printf '%s\n' "$out" >&2; exit 1; }
+    grep -q "^  sha256: $(sha256sum "signed/$f" | cut -d' ' -f1)\$" <<<"$out" \
+        || { echo "FAIL: the record carries another sha256 for $f" >&2; exit 1; }
+done
+test "$(grep -c '^- fedora' <<<"$out")" = 2
+mkdir -p empty
+if "$record" empty demo >/dev/null 2>&1; then echo "FAIL: record-srpm.sh is green with no source package" >&2; exit 1; fi
+echo "ok   record-srpm.sh records fedora 44 and 45, each with its sha256, and is red with none"
