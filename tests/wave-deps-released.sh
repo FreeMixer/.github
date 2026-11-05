@@ -3,7 +3,7 @@
 # be read fails the run; one with the branch is kept with its head. Runs the action's own `key` step against a stand-in
 # git, offline.
 set -euo pipefail
-here=$(cd "$(dirname "$0")/.." && pwd); T=$(mktemp -d "${XDG_CACHE_HOME:-$HOME/.cache}/wave-deps-test.XXXXXX"); trap 'rm -rf "$T"' EXIT; fail=0
+here=$(cd "$(dirname "$0")/.." && pwd); base=${XDG_CACHE_HOME:-$HOME/.cache}; mkdir -p "$base"; T=$(mktemp -d "$base/wave-deps-test.XXXXXX"); trap 'rm -rf "$T"' EXIT; fail=0
 python3 - "$here/.github/actions/wave-deps/action.yml" > "$T/key.sh" <<'PY'
 import sys, yaml
 steps = yaml.safe_load(open(sys.argv[1]))['runs']['steps']
