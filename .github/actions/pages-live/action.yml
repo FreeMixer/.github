@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+name: pages-live
+description: Wait until GitHub Pages has deployed a pushed channel commit
+
+# Run as a job of its own after the publish, so a slow Pages deployment never fails the publish: the GitHub
+# release assets come from the built files and do not wait for it. wait.sh reads the Pages deployment status of
+# the commit (the deployments API of the channel repository) for up to 30 minutes and, on timeout, fails naming
+# the deployment.
+
+inputs:
+  channel:
+    description: the channel repository
+    required: true
+  commit:
+    description: the commit the publish pushed
+    required: true
+  token:
+    description: a token that reads the deployments of the channel and may request a Pages build
+    required: true
+  timeout:
+    description: seconds to wait
+    default: '1800'
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        LIVE_TIMEOUT: ${{ inputs.timeout }}
+      run: bash "$GITHUB_ACTION_PATH/wait.sh" "${{ inputs.channel }}" "${{ inputs.commit }}"

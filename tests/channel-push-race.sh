@@ -46,7 +46,7 @@ HOOK
     chmod +x "$dir/remote.git/hooks/pre-receive"
     mkdir -p "$dir/run/build" && git clone -q "$dir/remote.git" "$dir/run/build/channel" 2>/dev/null
     mkdir -p "$dir/run/build/channel/rpm" && echo "package one" > "$dir/run/build/channel/rpm/one.txt"
-    (cd "$dir/run" && env PATH="$work/bin:$PATH" RUNNER_TEMP="$dir/tmp" GITHUB_REPOSITORY=FreeMixer/t \
+    (cd "$dir/run" && env PATH="$work/bin:$PATH" RUNNER_TEMP="$dir/tmp" GITHUB_OUTPUT="$dir/gh-output" GITHUB_REPOSITORY=FreeMixer/t \
         PUBLISH_TOKEN=x SITE_GPG_KEY="$SITE_GPG_KEY" BRANCH=main CHANNEL="$dir/remote.git" TAG=v1 WHAT=rpm \
         REBUILD="$rebuild" ATTEMPTS=3 bash "$work/step.sh" > "$dir/out.log" 2>&1) || rc=$?
     echo "$rc" > "$dir/rc"
@@ -59,6 +59,7 @@ files=$(git -C "$work/with-retry/remote.git" ls-tree -r --name-only main | tr '\
 git -C "$work/with-retry/remote.git" log --format=%s main | grep -qx 'other publish' || fail "the other publish was lost"
 git -C "$work/with-retry/remote.git" log -1 --format=%G? main | grep -qE '^[GUE]$' || fail "the retried commit is not signed"
 grep -q 'lost a race' "$work/with-retry/out.log" || fail "the retry was not announced"
+[ "$(sed -n s/^commit=//p "$work/with-retry/gh-output")" = "$(git -C "$work/with-retry/remote.git" rev-parse main)" ] || fail "the commit output is not the pushed tip"
 
 arm no-retry ''
 [ "$(cat "$work/no-retry/rc")" != 0 ] || fail "without a rebuild command the lost race passed"
