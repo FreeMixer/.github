@@ -135,22 +135,14 @@ jobs:
           publish-token: ${{ secrets.PAGES_TOKEN }}
           site-gpg-key: ${{ secrets.SITE_GPG_KEY }}
 
-      # the release record: where the source package is served and its sha256, for a consumer to pin
-      - name: Record the source package
+      # the release record: where each Fedora release's source package is served and its sha256, for a consumer to pin
+      - name: Record the source packages
         run: |
           set -euo pipefail
           # a signed publish serves the signed copy, whose bytes differ from the built file's
           if [ "$DO_PUBLISH" = true ]; then dir=signed; else dir=collected; fi
-          srpm=$(ls "$dir"/mod-host-[0-9]*.src.rpm)
-          name=$(basename "$srpm")
-          rel=$(rpm -qp --qf '%{RELEASE}' "$srpm" | sed -n 's/.*\.fc\([0-9][0-9]*\).*/\1/p')
-          {
-            echo "### Source package"
-            echo
-            echo "- url: https://www.openmixer.org/rpm/fedora/$rel/SRPMS/$name"
-            echo "- sha256: $(sha256sum "$srpm" | cut -d' ' -f1)"
-            echo "- published: $DO_PUBLISH ($dir copy)"
-          } | tee -a "$GITHUB_STEP_SUMMARY"
+          ./.github/actions/publish-rpms/record-srpm.sh "$dir" mod-host | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "- published: $DO_PUBLISH ($dir copy)" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v4
         if: env.DO_PUBLISH != 'true'
