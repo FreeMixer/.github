@@ -19,6 +19,14 @@ inputs:
   require-tag:
     description: a release is a publish on a tag; 'false' lets a workflow that publishes from a branch use this check
     default: 'true'
+  packages:
+    description: >-
+      the binary package names the release builds, space separated (globs allowed); the release is refused when
+      the target already serves one of them at the version the tag names. Empty skips that check.
+    default: ''
+  republish:
+    description: "'true' lets a release go out again over a version the channel already serves (a rerun that must finish a partial publish)"
+    default: 'false'
   gpg-key:
     default: ''
   gpg-passphrase:
@@ -39,6 +47,8 @@ runs:
         REF_TYPE: ${{ inputs.tag != '' && 'tag' || github.ref_type }}
         REQUIRE_TAG: ${{ inputs.require-tag }}
         TAG: ${{ inputs.tag || github.ref_name }}
+        PACKAGES: ${{ inputs.packages }}
+        REPUBLISH: ${{ inputs.republish }}
       run: |
         set -euo pipefail
         if [ "$PUBLISH" != true ] || { [ "$REQUIRE_TAG" = true ] && [ "$REF_TYPE" != tag ]; }; then
@@ -74,3 +84,14 @@ runs:
         push=$(jq -r '.permissions.push // "unknown"' /tmp/target.json)
         [ "$push" != false ] || { echo "::error::PAGES_TOKEN cannot push to $TARGET (contents:write is missing)"; exit 1; }
         echo "target $TARGET: $(jq -r '.visibility' /tmp/target.json), default branch $(jq -r '.default_branch' /tmp/target.json)"
+
+        # Moving old tags (a history rewrite) re-runs their release workflows. A version the channel already serves
+        # is never published again: the same NEVRA / deb version would be refused by dnf and apt, or worse, replaced.
+        if [ "$REQUIRE_TAG" = true ] && [ -n "$PACKAGES" ] && [ "$REPUBLISH" != true ]; then
+          code=$(curl -s --retry 5 --retry-all-errors --retry-delay 3 --connect-timeout 20 -o /tmp/tree.json -w '%{http_code}' \
+            -H "Authorization: Bearer $PAGES_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$TARGET/git/trees/HEAD?recursive=1")
+          [ "$code" = 200 ] || { echo "::error::the tree of $TARGET answered HTTP $code; cannot tell whether $TAG is already served"; exit 1; }
+          [ "$(jq -r '.truncated' /tmp/tree.json)" != true ] || echo "::warning::the tree of $TARGET is truncated; the already-served check is partial"
+          jq -r '.tree[].path' /tmp/tree.json | "$GITHUB_ACTION_PATH/already-served.sh" "$TAG" $PACKAGES
+        fi

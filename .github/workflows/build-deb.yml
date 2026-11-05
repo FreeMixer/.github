@@ -99,6 +99,10 @@ on:
         type: boolean
         default: true
         description: 'Attach the DEBs, named by Debian release, to the GitHub release of the tag'
+      republish:
+        type: boolean
+        default: false
+        description: 'Let the release go out over a version the channel already serves. Off, the preflight refuses it (a moved old tag re-running its release); on only to finish a partial publish.'
       verify-install:
         type: boolean
         default: true
@@ -157,6 +161,8 @@ jobs:
           publish: ${{ inputs.publish }}
           tag: ${{ inputs.source-ref }}
           target: ${{ inputs.target-repo }}
+          packages: ${{ inputs.binary-names || inputs.package-name }}
+          republish: ${{ inputs.republish }}
           gpg-key: ${{ secrets.OPENMIXER_PACKAGES_SIGNING_KEY }}
           pages-token: ${{ secrets.PAGES_TOKEN }}
 
