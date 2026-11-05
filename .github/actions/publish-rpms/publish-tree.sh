@@ -92,6 +92,15 @@ if [ -n "$key" ]; then
     rm -rf "$keystore"
 fi
 
+# openmixer.repo asks for fedora/<release>/$basearch/ and fedora/<release>/noarch/: every release the tree holds gets all
+# its arch directories, with metadata even when empty, or dnf stops on a 404 for the one nothing was published into
+for rel in "$tree"/fedora/*/; do
+    [ -d "$rel" ] || continue
+    for arch in noarch x86_64 aarch64 SRPMS; do
+        mkdir -p "$rel$arch"
+        dirs[${rel}$arch]=1
+    done
+done
 # every directory that holds packages, not only the ones this run placed into: the metadata of the
 # pulled tree was discarded, and a directory another project filled would be left bare
 while IFS= read -r d; do dirs[$d]=1; done < <(find "$tree" -name '*.rpm' -printf '%h\n' | sort -u)
