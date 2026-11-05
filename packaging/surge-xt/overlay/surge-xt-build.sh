@@ -7,6 +7,8 @@
 #   surge-xt-build.sh build <source dir> <build dir>
 #   surge-xt-build.sh install <source dir> <build dir> <destdir>
 #
+# Upstream builds with -Werror (SURGE_SKIP_WERROR is its switch): the compiler here is newer than its CI's, and a new
+# warning in a vendored library is not a reason to refuse the package.
 # The CLAP and the LV2 are the only formats built: the VST3, the standalone application and Surge XT Effects are not.
 # The LV2 is JUCE 8's own wrapper, the JUCE the repository carries as a submodule, not the branch of the JUCE LV2
 # porting project that upstream's scripts/installer_linux/build-lv2 fetches. Installed to the FHS places hosts look
@@ -21,7 +23,7 @@ bld=$(readlink -m "${3:?build dir}")
 case "$verb" in
 build)
     cmake -GNinja -S "$src" -B "$bld" -DCMAKE_BUILD_TYPE=Release -DSURGE_BUILD_LV2=ON -DSURGE_BUILD_CLAP=ON \
-        -DSURGE_BUILD_TESTRUNNER=OFF -DSURGE_SKIP_STANDALONE=TRUE -DSURGE_COPY_TO_PRODUCTS=OFF
+        -DSURGE_SKIP_WERROR=TRUE -DSURGE_BUILD_TESTRUNNER=OFF -DSURGE_SKIP_STANDALONE=TRUE -DSURGE_COPY_TO_PRODUCTS=OFF
     cmake --build "$bld" --target surge-xt_CLAP surge-xt_LV2 ${SURGE_JOBS:+--parallel "$SURGE_JOBS"}
     ;;
 install)
