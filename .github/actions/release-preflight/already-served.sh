@@ -5,7 +5,8 @@
 #
 # Exits 1, naming the file, when the tree holds a package of the given names at the version the tag names:
 #   rpm/**/<name>-<version>-<release>.<arch>.rpm      deb/**/<name>_<version>[-<revision>]_<arch>.deb
-# Names may be globs. A tag that is not v<version> names no version and passes.
+# Names may be globs. A tag that is not v<version> names no version and passes. KIND=rpm or KIND=deb reads only that
+# half of the tree (a release's deb job must not be refused by the rpms its own rpm job just published); empty reads both.
 set -uo pipefail
 tag=$1; shift
 ver=${tag#v}
@@ -14,7 +15,8 @@ found=
 while IFS= read -r path; do
   base=${path##*/}
   case $path in
-    rpm/*.rpm|deb/*.deb) ;;
+    rpm/*.rpm) [ "${KIND:-}" != deb ] || continue ;;
+    deb/*.deb) [ "${KIND:-}" != rpm ] || continue ;;
     *) continue ;;
   esac
   for name in "$@"; do

@@ -4,7 +4,9 @@
 # release-preflight refuses a release of a version the channel already serves, naming the file: the step is read out
 # of the action file and run against a stub curl that answers the repository and its tree. Arms: a new version passes;
 # the same rpm version, the same deb version (with and without a revision) and a glob name are refused with the file
-# named; another package at that version passes; republish lets it through; a dry run and a branch run never ask.
+# named; another package at that version passes; republish lets it through; a dry run and a branch run never ask;
+# a deb release passes over the rpms of its own version (its rpm job published them) and refuses its own debs, and the
+# same the other way round.
 set -euo pipefail
 here=$(cd "$(dirname "$0")/.." && pwd)
 act=$here/.github/actions/release-preflight
@@ -38,9 +40,9 @@ cat > "$tmp/tree.json" <<'J'
  {"path":"rpm/fedora/44/x86_64/repodata/repomd.xml"}]}
 J
 export TREE_DIR=$tmp
-run() { # run <publish> <ref-type> <tag> <packages> [republish]
+run() { # run <publish> <ref-type> <tag> <packages> [republish] [kind]
   PATH=$tmp/bin:$PATH PUBLISH=$1 TARGET=FreeMixer/freemixer.github.io GPG_KEY=k PAGES_TOKEN=t REF=refs/tags/$3 \
-    REF_TYPE=$2 REQUIRE_TAG=true TAG=$3 PACKAGES=$4 REPUBLISH=${5:-false} GITHUB_ACTION_PATH=$act bash "$tmp/step.sh" > "$tmp/out" 2>&1
+    REF_TYPE=$2 REQUIRE_TAG=true TAG=$3 PACKAGES=$4 REPUBLISH=${5:-false} KIND=${6:-} GITHUB_ACTION_PATH=$act bash "$tmp/step.sh" > "$tmp/out" 2>&1
 }
 run true tag v1.2.4 foo || { cat "$tmp/out"; fail "a new version was refused"; }
 run true tag v1.2.3 foo && fail "an rpm version the channel serves passed"
@@ -54,4 +56,9 @@ run true tag v1.2.3 foo true || fail "republish was refused"
 run false tag v1.2.3 foo || fail "a dry run was refused"
 : > "$tmp/asked"; run false tag v1.2.3 foo; ! grep -q git/trees "$tmp/asked" || fail "a dry run read the tree"
 run true tag v1.2.3 '' || fail "no package list must skip the check"
-echo "ok   release-preflight-served: 9 arms"
+run true tag v1.2.3 foo false deb || { cat "$tmp/out"; fail "a deb release was refused by the rpms of its own version"; }
+run true tag v1.2.3 foo false rpm && fail "an rpm release passed over its own served rpm"
+run true tag v2.0.0 bar false rpm || { cat "$tmp/out"; fail "an rpm release was refused by the debs of its own version"; }
+run true tag v2.0.0 bar false deb && fail "a deb release passed over its own served deb"
+grep -q 'bar_2.0.0-1_amd64.deb' "$tmp/out" || fail "the deb-kind refusal does not name the deb"
+echo "ok   release-preflight-served: 13 arms"
