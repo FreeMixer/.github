@@ -37,5 +37,13 @@
    "name": "claude\u002eai/code",
    "pattern": "\\[[^\\]\\r\\n]*\\]\\([^\\S\\r\\n]*<?https?://claude\\.ai/code[^)\\s]*>?[^\\S\\r\\n]*\\)|<?https?://claude\\.ai/code\\b[^\\s)>`]*>?"
   }
- ]
+ ],
+ "identity": {
+  "comment": "Matched against the author and committer name and email of each commit (Python re, IGNORECASE).",
+  "pattern": "anthropi\u0063|claude"
+ },
+ "merge-branch": {
+  "comment": "Matched against the subject of a merge commit: a branch or pull request head under claude/.",
+  "pattern": "(?:^|[\\s'\"/])claude/"
+ }
 }
