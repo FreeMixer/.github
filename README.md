@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later
+     Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com> -->
 # FreeMixer/.github
 
 Organisation defaults and the reusable package release workflows.
@@ -24,7 +26,8 @@ A machine adds the channel by installing `openmixer-release` (`packaging/openmix
 
 The checks and builds every repository runs are reusable workflows here, and a repository keeps no copy of
 them: `public-sources-check.yml` (commit messages, private references, and no local copy of either, the
-commit-msg hook being `.github/actions/commit-message-check/commit-msg` byte for byte), `ci-node.yml`, `ci-c.yml`,
+commit-msg hook being `.github/actions/commit-message-check/commit-msg` byte for byte; and, in a public repository,
+no dated document, no dated folder and no folder of evidence or notes), `ci-node.yml`, `ci-c.yml`,
 `fuzz.yml`, `release-c-lib.yml` (RPMs then DEBs) and `release-npm.yml` (trusted publishing). Each documents its
 inputs at its top. A repository whose every tracked file carries its licence runs `.github/actions/spdx-check`: the
 rule is the format of the file, a format with no comment syntax carries no header, and there is no list of files.
@@ -55,8 +58,8 @@ version name. A version name does not say which bytes you have; a commit does. S
 - Every package we publish can be traced back to the exact upstream commit it was built from.
 - CI, the build machines and a developer's desk all build the same thing; nothing drifts when upstream moves.
 - A change of dependency is one reviewed line here, with its changelog entry, so you can see when and why it moved.
-- mod-host is not pinned here: `packaging/mod-host` carries the audinux spec and the upstream pull requests it
-  applies, one patch file per pull request, until audinux ships them (`docs/mod-host-carried-patches.md`).
+- mod-host is built from the FreeMixer fork at the commit `pins.txt` names, by the fork's own spec and `debian/`;
+  nothing is patched here (`docs/mod-host.md`).
 
 - pugl and nanovg, which neither Fedora nor Debian package, are pinned here and built by `packaging/pugl`,
   `packaging/nanovg` (the RPMs, `actions/pinned-rpms`) and `actions/deb-deps/pugl`, `nanovg` (the DEBs); a spec

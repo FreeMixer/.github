@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # live-check.sh of the channel-push action against a stub site: a curl that serves a directory and, on a POST to
 # the Pages builds endpoint of the REST API, "redeploys" it. It runs with a PATH that has no gh, as in the Debian
 # publish container. Arms: the site serves the push at once; the site lags until the Pages build is requested
@@ -29,6 +31,8 @@ url=${@: -1}; url=${url%%\?*}
 case " $* " in *" -X POST "*)
     { echo "POST $url $*"; cat; } >> "$SITE_DIR/api.log"
     [ ! -e "$SITE_DIR/refuse" ] || exit 22
+    # swallow: the first build request is cancelled by a later push, as in a run of publishes back to back
+    if [ -e "$SITE_DIR/swallow" ] && [ ! -e "$SITE_DIR/swallowed" ]; then touch "$SITE_DIR/swallowed"; exit 0; fi
     touch "$SITE_DIR/redeployed"; exit 0 ;;
 esac
 n=$(( $(cat "$SITE_DIR/reads" 2>/dev/null || echo 0) + 1 )); echo "$n" > "$SITE_DIR/reads"
@@ -79,8 +83,12 @@ grep -q '^POST https://api.example/repos/FreeMixer/channel/pages/builds ' "$work
     || { cat "$work/lags-then-redeployed/out.log"; fail "the lagging site was not redeployed through the REST API"; }
 grep -q '^Authorization: Bearer test-token' "$work/lags-then-redeployed/api.log" || fail "the build request carries no token"
 ! grep -q 'test-token' <(sed -n '/^POST /p' "$work/lags-then-redeployed/api.log") || fail "the token is on the command line"
+# the first build request is swallowed; only a second one turns the site live
+mkdir -p "$work/cancelled-once"; touch "$work/cancelled-once/swallow"
+(export LIVE_TIMEOUT=6; arm cancelled-once old new deb ok)
+[ "$(grep -c '^POST .*/pages/builds' "$work/cancelled-once/api.log")" = 2 ] || fail "cancelled-once: the build must be requested a second time, and no more"
 arm never-catches-up old old deb red 'new_2_amd64.deb'
-[ "$(grep -c '^POST .*/pages/builds' "$work/never-catches-up/api.log")" = 1 ] || fail "the build must be requested once"
+[ "$(grep -c '^POST .*/pages/builds' "$work/never-catches-up/api.log")" -ge 2 ] || fail "the build must be requested again while the site lacks the package"
 (unset GH_TOKEN; export LIVE_AFTER=2; arm no-token old new deb ok)
 grep -q '::warning::no token' "$work/no-token/out.log" || { cat "$work/no-token/out.log"; fail "no-token: no warning"; }
 [ ! -e "$work/no-token/api.log" ] || fail "no-token: a build was requested without a token"

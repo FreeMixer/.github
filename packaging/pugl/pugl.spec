@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # pugl, the window and event library of the panel renderer (omx-panel docs/renderer.md), which neither Fedora nor
 # Debian package. Built from the commit of .github/pins.txt (upstream publishes no release tarball), with every
 # backend but Vulkan: X11 with the GL and Cairo backends. The package carries the suffix omx after its

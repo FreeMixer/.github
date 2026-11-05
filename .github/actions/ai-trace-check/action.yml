@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 name: commit-message-check (old path)
 description: Forwards to commit-message-check; kept for one release while the consumers move to the new path
 

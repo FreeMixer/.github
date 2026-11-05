@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # The Debian half of the channel publish: a package built from a debian/changelog carries it, publish-tree.sh
 # serves it next to the apt index, and `apt changelog` shows it for a version that is not installed. Needs a
 # Debian container with dpkg-dev, debhelper, apt-utils and python3.

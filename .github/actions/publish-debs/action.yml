@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 name: publish-debs
 description: Sign DEBs and publish them into the deb/ tree of a FreeMixer Pages repository
 

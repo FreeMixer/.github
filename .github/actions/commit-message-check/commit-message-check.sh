@@ -1,6 +1,9 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-3.0-or-later
-# commit-message-check.sh: fail when a commit message carries an attribution line.
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
+# commit-message-check.sh: fail when a commit message carries an attribution line, when its author or committer
+# name or email matches the identity pattern, or when a merge subject names a branch under claude/.
 #
 #   commit-message-check.sh <range>          every commit in the range (e.g. origin/main..HEAD)
 #   commit-message-check.sh --msg-file FILE  one message (the commit-msg hook; # lines are git comments, skipped)
@@ -24,6 +27,28 @@ pfile = os.environ.get("COMMIT_MESSAGE_PATTERNS") or os.path.join(here, "commit-
 def load():
     with open(pfile, encoding="utf-8") as f:
         return [(m["name"], re.compile(m["pattern"], re.I | re.M)) for m in json.load(f)["markers"]]
+
+
+def load_ident():
+    with open(pfile, encoding="utf-8") as f:
+        j = json.load(f)
+    return re.compile(j["identity"]["pattern"], re.I), re.compile(j["merge-branch"]["pattern"], re.I)
+
+
+def ident_hits(name, email, subject, parents, ident, branch):
+    """Who made the commit, and which branch a merge names; the message text is judged by hits()."""
+    out = []
+    for who, v in (("author", name[0] + " <" + email[0] + ">"), ("committer", name[1] + " <" + email[1] + ">")):
+        if ident.search(v):
+            out.append((0, who, v))
+    if subject.startswith("Merge") and branch.search(subject):
+        out.append((1, "merge-branch", subject))
+    return out
+
+
+def commit_ident_hits(sha, ident, branch):
+    f = git("log", "-1", "--format=%an%x00%ae%x00%cn%x00%ce%x00%P%x00%s", sha).rstrip("\n").split("\0")
+    return ident_hits((f[0], f[2]), (f[1], f[3]), f[5], len(f[4].split()), ident, branch)
 
 
 def hits(text, markers):
@@ -72,6 +97,24 @@ def selftest():
         if hits(clean, markers):
             bad.append("clean-flagged")
         return bad
+    # identity fixtures: (author name, email, committer name, email, parents, subject) -> expected hit
+    ident, branch = load_ident()
+    nm, em, cl = "Cla" + "ude", "noreply@anthropi" + "\x63.com", "cla" + "ude"
+    ifx = [
+        ("author", ((nm, "Pau"), (em, "x@example.invalid"), "fix x", 1), True),
+        ("committer", (("Pau", nm), ("x@example.invalid", em), "fix x", 1), True),
+        ("merge-branch", (("GitHub", "GitHub"), ("noreply@github.com",) * 2, f"Merge pull request #1 from FreeMixer/{cl}/a", 2), True),
+        ("ordinary", (("Pau Aliagas", "Pau Aliagas"), ("linuxnow@gmail.com", "commits@openmixer.org"), "fix x", 1), False),
+        ("github-merge", (("GitHub", "GitHub"), ("noreply@github.com",) * 2, "Merge pull request #1 from FreeMixer/fix/a", 2), False),
+    ]
+    def irun(i, b):
+        return [k for k, a, want in ifx if bool(ident_hits(a[0], a[1], a[2], a[3], i, b)) != want]
+    ibad = irun(ident, branch)
+    print("selftest identity:", "GREEN" if not ibad else f"RED {ibad}")
+    never = re.compile(r"(?!)")
+    isab = irun(never, never)
+    print("sabotage (the identity and merge-branch patterns removed):",
+          "RED as expected" if isab else "still GREEN: blind")
     m = load()
     first = run(m)
     print("selftest:", "GREEN" if not first else f"RED {first}")
@@ -83,7 +126,7 @@ def selftest():
     blind = [k for k in new if k not in sab2]
     print("sabotage (the assisted-by, generated and model co-author patterns removed):",
           "RED as expected" if not blind else f"still GREEN for {blind}: blind")
-    return 0 if not first and sab and not blind else 1
+    return 0 if not first and sab and not blind and not ibad and isab else 1
 
 
 def main(a):
@@ -109,8 +152,12 @@ def main(a):
     if len(a) == 1 and not a[0].startswith("-"):
         shas = git("rev-list", a[0]).split()
         bad = 0
+        ident, branch = load_ident()
         for sha in shas:
             bad += report(sha[:12], git("log", "-1", "--format=%B", sha), markers)
+            for _, name, line in commit_ident_hits(sha, ident, branch):
+                print(f"{sha[:12]}: [{name}]: {line}")
+                bad += 1
         print(f"commit-message-check: {len(shas)} commits, {bad} offending lines")
         return 1 if bad else 0
     print(__doc__ if False else "usage: commit-message-check.sh <range> | --msg-file FILE | --text-file FILE | --selftest", file=sys.stderr)

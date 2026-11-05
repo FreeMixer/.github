@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # Build the DEBs of a tree from its debian/ directory and lint them.
 #
 #   build-deb.sh [-C <tree>] [-t <release tag>] [-s <separator>] [-L] <output dir>

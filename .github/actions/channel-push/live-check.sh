@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # live-check.sh <channel dir> <what> <site url> <channel repo>
 #
 # After a push, wait until the live site serves what the pushed commit added. GitHub Pages cancels a deployment
@@ -6,7 +8,9 @@
 #   deb: each added .deb is listed in the live Packages index of its suite
 #   rpm: each added .rpm is served, and the live repodata/repomd.xml revision is at least the committed one
 # With nothing served after REDEPLOY_AFTER seconds it asks Pages for one more build of the whole tree (the
-# latest commit, which carries this one), by curl on the REST API with GH_TOKEN (or GITHUB_TOKEN); with no token
+# latest commit, which carries this one), and asks again every REDEPLOY_AFTER seconds while the site still lacks
+# it: a build can be cancelled by the next push, and a run of publishes back to back cancels the one asked for.
+# The request goes by curl on the REST API with GH_TOKEN (or GITHUB_TOKEN); with no token
 # it skips the request with a warning and keeps waiting, and a refused request is only a warning. After
 # LIVE_TIMEOUT seconds it fails, naming what the site still lacks.
 # Env: CURL (default curl), GH_TOKEN or GITHUB_TOKEN, GITHUB_API_URL (default https://api.github.com),
@@ -53,7 +57,7 @@ request_build() { # asks Pages to build the channel again; never fails the check
     return 0
 }
 
-start=$SECONDS redeployed=0
+start=$SECONDS next_redeploy=$REDEPLOY_AFTER
 while :; do
     lack=$(missing)
     if [ -z "$lack" ]; then
@@ -61,10 +65,10 @@ while :; do
         exit 0
     fi
     waited=$((SECONDS - start))
-    if [ "$redeployed" = 0 ] && [ "$waited" -ge "$REDEPLOY_AFTER" ]; then
+    if [ "$waited" -ge "$next_redeploy" ] && [ "$waited" -lt "$LIVE_TIMEOUT" ]; then
         echo "::warning::$site still lacks: $(tr '\n' ' ' <<<"$lack")-- asking Pages to build the channel again"
         request_build
-        redeployed=1
+        next_redeploy=$((waited + REDEPLOY_AFTER))
     fi
     if [ "$waited" -ge "$LIVE_TIMEOUT" ]; then
         echo "::error::after ${waited}s $site still lacks: $(tr '\n' ' ' <<<"$lack")(the commit is pushed; the Pages deployment is not live)"

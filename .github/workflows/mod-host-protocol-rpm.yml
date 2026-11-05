@@ -1,12 +1,12 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 name: mod-host-protocol RPMs
 
-# Builds mod-host, mod-host-protocol, which carries libmod-host-protocol.so.0, and mod-host-protocol-devel from
-# packaging/mod-host for every architecture and publishes them into rpm/ of the Pages repository, where
-# omx-clap-host and plugin-hostd Require libmod-host-protocol.so.0, until audinux ships the library with the patches
-# we carry. The packages carry the spec's Version and Release with the suffix omx after it (11.3.omx.fc44): newer than
-# audinux's build without the patches (11), older than its build with them (12), which then replaces ours
-# (docs/mod-host-carried-patches.md). Run by hand, once per change of packaging/mod-host: a published NEVRA is never
-# rebuilt with new bytes.
+# Builds mod-host, mod-host-protocol, which carries libmod-host-protocol.so.0, and mod-host-protocol-devel from the
+# FreeMixer fork of mod-host at the commit .github/pins.txt names, by the fork's own packaging/mod-host.spec, for
+# every architecture and publishes them into rpm/ of the Pages repository, where omx-clap-host and plugin-hostd
+# Require them. Move the pin to the fork's release tag, then run this by hand: a published NEVRA is never rebuilt
+# with new bytes (docs/mod-host.md).
 #
 # publish=false, the default, is a dry run: it builds and assembles an unsigned tree as an artifact.
 
@@ -60,13 +60,12 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: ./.github/actions/mod-host-rpms
-        with:
-          suffix: omx
 
       - name: Stage the packages and check what they carry
         env:
           ARCH: ${{ matrix.arch }}
           FEDORA: ${{ matrix.fedora }}
+          PUBLISH: ${{ inputs.publish }}
         run: |
           set -euo pipefail
           mkdir -p release
@@ -81,7 +80,10 @@ jobs:
           for f in release/*.rpm; do rpm -qp --qf '%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}\n' "$f"; done
           evr=$(rpm -qp --qf '%{VERSION}-%{RELEASE}\n' release/*.rpm | sort -u)
           [ "$(printf '%s\n' "$evr" | wc -l)" = 1 ] || { echo "::error::the packages carry more than one version: $evr"; exit 1; }
-          case "$evr" in *.omx.fc"$FEDORA") ;; *) echo "::error::$evr does not carry the omx suffix"; exit 1 ;; esac
+          case "$evr" in *.git*)
+            [ "$PUBLISH" != true ] || { echo "::error::$evr is a snapshot: pin the fork's release tag"; exit 1; }
+            echo "::warning::$evr is a snapshot, which a publish refuses" ;;
+          esac
           case "$evr" in *.fc"$FEDORA") ;; *) echo "::error::$evr is not built for fc$FEDORA"; exit 1 ;; esac
           rpm -qp --provides release/mod-host-protocol-[0-9]*.rpm | grep '^libmod-host-protocol\.so\.0' \
             || { echo "::error::mod-host-protocol does not provide libmod-host-protocol.so.0"; exit 1; }
@@ -133,22 +135,14 @@ jobs:
           publish-token: ${{ secrets.PAGES_TOKEN }}
           site-gpg-key: ${{ secrets.SITE_GPG_KEY }}
 
-      # the release record: where the source package is served and its sha256, for a consumer to pin
-      - name: Record the source package
+      # the release record: where each Fedora release's source package is served and its sha256, for a consumer to pin
+      - name: Record the source packages
         run: |
           set -euo pipefail
           # a signed publish serves the signed copy, whose bytes differ from the built file's
           if [ "$DO_PUBLISH" = true ]; then dir=signed; else dir=collected; fi
-          srpm=$(ls "$dir"/mod-host-[0-9]*.src.rpm)
-          name=$(basename "$srpm")
-          rel=$(rpm -qp --qf '%{RELEASE}' "$srpm" | sed -n 's/.*\.fc\([0-9][0-9]*\).*/\1/p')
-          {
-            echo "### Source package"
-            echo
-            echo "- url: https://www.openmixer.org/rpm/fedora/$rel/SRPMS/$name"
-            echo "- sha256: $(sha256sum "$srpm" | cut -d' ' -f1)"
-            echo "- published: $DO_PUBLISH ($dir copy)"
-          } | tee -a "$GITHUB_STEP_SUMMARY"
+          ./.github/actions/publish-rpms/record-srpm.sh "$dir" mod-host | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "- published: $DO_PUBLISH ($dir copy)" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v4
         if: env.DO_PUBLISH != 'true'

@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # Build the packages of a wave's siblings from their wave branch into a local repository, and add that repository to
 # this system, so what the caller then builds and installs (dnf builddep, apt-get build-dep, dnf/apt install) takes the
 # siblings' fresh builds and not the channel's releases.

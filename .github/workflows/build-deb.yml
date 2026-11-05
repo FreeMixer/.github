@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 name: Build DEB (reusable)
 
 # The Debian half of the release path of build-rpm.yml, for Raspberry Pi OS and Zynthian (Debian bookworm,
@@ -16,7 +18,7 @@ name: Build DEB (reusable)
 #
 # The packaging is the debian/ directory of the calling repository; its changelog version is the version and
 # must equal the packaging/*.spec Version when there is one, and the tag must be v<version>. What Debian does
-# not carry, libmod-host-protocol (from packaging/mod-host) and the CLAP headers (from .github/pins.txt), is built first: the
+# not carry, libmod-host-protocol (from the FreeMixer fork of mod-host) and the CLAP headers (from .github/pins.txt), is built first: the
 # protocol library is published once by mod-host-protocol-deb.yml and the packages Depend on it, they never
 # carry a copy; the CLAP headers are a build dependency only. A build dependency the channel already serves
 # (plugin-hostd-dev) comes from the channel's apt source, added inside the build container only.
@@ -255,9 +257,11 @@ jobs:
     env:
       DO_PUBLISH: ${{ inputs.publish && (inputs.source-ref != '' || github.ref_type == 'tag') }}
     steps:
+      # <suite>-<arch> only: artifacts outlive their attempt, and the published copies an earlier attempt uploaded
+      # as -debs-signed are flat, which publish-tree.sh refuses (tests/deb-rerun-layout.sh)
       - uses: actions/download-artifact@v4
         with:
-          pattern: ${{ inputs.package-name }}-debs-*
+          pattern: ${{ inputs.package-name }}-debs-*-*
           merge-multiple: true
           path: collected
 
@@ -323,7 +327,7 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          pattern: ${{ inputs.package-name }}-debs-*
+          pattern: ${{ inputs.package-name }}-debs-*-*
           merge-multiple: true
           path: collected
 

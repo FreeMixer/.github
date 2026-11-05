@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 name: clap-headers DEBs
 
 # Builds clap-headers from the pin of .github/pins.txt for every Debian release and publishes it into deb/ of the

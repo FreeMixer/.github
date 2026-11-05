@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # A change of release key through the publish scripts, as a channel lives it: a tree signed by OLD_ID, the
 # new key served next to it, then a publish signed by NEW_ID. Proves the served key file is a union, that the
 # honesty check refuses a key the channel does not serve, and that a client holding only the old key keeps

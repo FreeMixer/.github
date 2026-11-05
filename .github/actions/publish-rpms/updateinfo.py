@@ -1,4 +1,6 @@
 #!/usr/bin/python3
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 """Write updateinfo.xml for the binary RPMs of one directory of a dnf tree.
 
     updateinfo.py <rpm dir> <output file>

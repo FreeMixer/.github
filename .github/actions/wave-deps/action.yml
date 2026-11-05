@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 name: wave-deps
 description: On a run for the wave branch, build the named siblings from that branch and prefer them over the channel
 
@@ -43,7 +45,7 @@ inputs:
 outputs:
   active:
     description: true when the siblings were built and their repository added
-    value: ${{ steps.decide.outputs.active }}
+    value: ${{ steps.decide.outputs.active == 'true' && steps.key.outputs.repos != '' && 'true' || 'false' }}
   prefix:
     description: the local repository's directory
     value: ${{ inputs.prefix }}
@@ -99,16 +101,26 @@ runs:
         # the tools the build and the cache need, before the cache is restored
         "$GITHUB_ACTION_PATH/build.sh" --tools
         shas=
+        kept=
         for r in $REPOS; do
-          sha=
+          sha= read=
           for n in 1 2 3 4 5; do
-            sha=$(git ls-remote "https://github.com/$OWNER/$r.git" "refs/heads/$BRANCH" | cut -f1) && [ -n "$sha" ] && break
+            # ls-remote answering with no line is a read: the sibling has no wave branch. Only a failed read is retried.
+            if out=$(git ls-remote "https://github.com/$OWNER/$r.git" "refs/heads/$BRANCH"); then
+              read=yes; sha=$(cut -f1 <<<"$out"); break
+            fi
             echo "::warning::wave-deps: no $BRANCH head read for $r, attempt $n of 5"; sleep $((n * 5))
           done
-          [ -n "$sha" ] || { echo "::error::wave-deps: $OWNER/$r has no $BRANCH"; exit 1; }
+          [ -n "$read" ] || { echo "::error::wave-deps: $OWNER/$r could not be read"; exit 1; }
+          if [ -z "$sha" ]; then
+            # the wave branch goes when the sibling is released: its package in the channel is what this run builds on
+            echo "::notice::wave-deps: $OWNER/$r has no $BRANCH: released, the channel's package stands"
+            continue
+          fi
           echo "wave-deps: $r $BRANCH at $sha"
-          shas+="$r=$sha "
+          shas+="$r=$sha "; kept+="$r "
         done
+        echo "repos=${kept% }" >> "$GITHUB_OUTPUT"
         . /etc/os-release
         scripts=$(cat "$GITHUB_ACTION_PATH/build.sh" "$GITHUB_ACTION_PATH/../build-rpm/build-rpm.sh" \
           "$GITHUB_ACTION_PATH/../build-deb/build-deb.sh" | sha256sum | cut -c1-16)
@@ -117,23 +129,23 @@ runs:
         echo "key=wave-deps-$ID-$VERSION_ID-$(uname -m)-$scripts-$digest" >> "$GITHUB_OUTPUT"
 
     - id: restore
-      if: steps.decide.outputs.active == 'true'
+      if: steps.decide.outputs.active == 'true' && steps.key.outputs.repos != ''
       uses: actions/cache/restore@v4
       with:
         path: ${{ inputs.prefix }}
         key: ${{ steps.key.outputs.key }}
 
-    - if: steps.decide.outputs.active == 'true'
+    - if: steps.decide.outputs.active == 'true' && steps.key.outputs.repos != ''
       shell: bash
       env:
         PREFIX: ${{ inputs.prefix }}
         BRANCH: ${{ inputs.branch }}
         OWNER: ${{ inputs.owner }}
-        REPOS: ${{ steps.decide.outputs.repos }}
+        REPOS: ${{ steps.key.outputs.repos }}
         WAVE_DEPS_SHAS: ${{ steps.key.outputs.shas }}
       run: '"$GITHUB_ACTION_PATH/build.sh" "$PREFIX" "$BRANCH" "$OWNER" $REPOS'
 
-    - if: steps.decide.outputs.active == 'true' && steps.restore.outputs.cache-hit != 'true'
+    - if: steps.decide.outputs.active == 'true' && steps.key.outputs.repos != '' && steps.restore.outputs.cache-hit != 'true'
       uses: actions/cache/save@v4
       continue-on-error: true
       with:

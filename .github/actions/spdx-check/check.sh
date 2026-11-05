@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # spdx-check: every tracked file a comment can be written in opens with its licence and its copyright.
 #
 #   check.sh [ROOT]        the check, over every file ROOT (default: the current directory) tracks
@@ -21,6 +23,8 @@ no_comment_syntax() {
   case "$1" in
     debian/changelog|debian/source/format) return 0 ;;   # dpkg parses every line of both
     debian/copyright) return 0 ;;                        # the licence statement itself, in a format with no comments
+    */debian/changelog|*/debian/copyright|*/debian/source/format) return 0 ;;   # the same three, in a package kept below a folder
+    */changelog|*/copyright|*/source/format) return 0 ;;  # a package's source tree kept outside debian/ (dpkg reads the same three)
     fuzz/corpus/*|*/fuzz/corpus/*) return 0 ;;           # raw input to a harness: every byte is the input
   esac
   case "$base" in
@@ -31,6 +35,7 @@ no_comment_syntax() {
     *.json|*.jsonl) return 0 ;;                                          # JSON has no comments
     *.txt|*.tsv|*.csv) return 0 ;;                                       # plain text and tables: every line is data
     *.sha256) return 0 ;;                                                # digests, one per line
+    *.asc) return 0 ;;                                                   # an ASCII-armoured key: a line more breaks the armour
   esac
   # binary: a NUL in the first 8000 bytes, the test git itself uses. An image, a font, a fuzz seed.
   [ -n "$(head -c 8000 -- "$2" | LC_ALL=C tr -dc '\000' | head -c 1 | LC_ALL=C tr '\000' x)" ]
@@ -75,6 +80,9 @@ if [ "${1:-}" = --self-test ]; then
     printf 'GNU GENERAL PUBLIC LICENSE\n' > "$t/r/LICENSE"
     printf 'x (1) unstable; urgency=medium\n' > "$t/r/debian/changelog"
     printf '3.0 (native)\n' > "$t/r/debian/source/format"
+    mkdir -p "$t/r/pkg/foo/source"; printf 'x (1) unstable; urgency=medium\n' > "$t/r/pkg/foo/changelog"
+    printf 'Format: https://example.invalid/\n' > "$t/r/pkg/foo/copyright"; printf '3.0 (native)\n' > "$t/r/pkg/foo/source/format"
+    printf -- '-----BEGIN PGP PUBLIC KEY BLOCK-----\n' > "$t/r/src/key.asc"
     printf 'Format: https://example.invalid/\n' > "$t/r/debian/copyright"
     printf '\000\001\002rate' > "$t/r/seeds/zero-rate"
     mkdir -p "$t/r/fuzz/corpus/eq"; printf '#' > "$t/r/fuzz/corpus/eq/one-byte-seed"

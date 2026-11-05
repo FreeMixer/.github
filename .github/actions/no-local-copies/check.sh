@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # no-local-copies check.sh [ROOT] | --self-test
 #
 # A FreeMixer repository runs the shared checks from FreeMixer/.github and keeps no copy of them: no commit message

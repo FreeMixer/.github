@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # The public key files a channel serves (rpm/RPM-GPG-KEY-openmixer, deb/openmixer.asc).
 #
 #   channel-keys.sh check <key file> <fingerprint>...   every fingerprint is a primary the file serves
