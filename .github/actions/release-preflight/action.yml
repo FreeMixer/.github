@@ -24,6 +24,12 @@ inputs:
       the binary package names the release builds, space separated (globs allowed); the release is refused when
       the target already serves one of them at the version the tag names. Empty skips that check.
     default: ''
+  kind:
+    description: >-
+      'rpm' or 'deb': the package kind this release publishes; the already-served check reads only that half of the
+      channel, so the deb job of a release is not refused by the rpms its own rpm job published a minute earlier.
+      Empty reads both.
+    default: ''
   republish:
     description: "'true' lets a release go out again over a version the channel already serves (a rerun that must finish a partial publish)"
     default: 'false'
@@ -49,6 +55,7 @@ runs:
         TAG: ${{ inputs.tag || github.ref_name }}
         PACKAGES: ${{ inputs.packages }}
         REPUBLISH: ${{ inputs.republish }}
+        KIND: ${{ inputs.kind }}
       run: |
         set -euo pipefail
         if [ "$PUBLISH" != true ] || { [ "$REQUIRE_TAG" = true ] && [ "$REF_TYPE" != tag ]; }; then
