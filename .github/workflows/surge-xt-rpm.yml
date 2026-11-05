@@ -1,0 +1,152 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
+name: Surge XT RPMs
+
+# Builds Surge XT (surge-xt, surge-xt-data, surge-xt-clap, surge-xt-lv2) from packaging/surge-xt at the commit of
+# .github/pins.txt, for every architecture, installs the result in a clean container with omx-clap-host from the
+# channel and loads it there (packaging/surge-xt/load-check.sh), then publishes it into rpm/ of the Pages
+# repository. Run by hand, once per change of the spec: a published NEVRA is never rebuilt with new bytes.
+#
+# publish=false, the default, is a dry run: it builds and assembles an unsigned tree as an artifact.
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Sign and publish; only a run on the main branch publishes'
+        type: boolean
+        default: false
+  pull_request:
+    paths:
+      - 'packaging/surge-xt/**'
+      - '.github/actions/pinned-rpms/**'
+      - '.github/pins.txt'
+      - '.github/workflows/surge-xt-rpm.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    name: Check the release can publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Refuse to publish from anywhere but main
+        if: inputs.publish && github.ref != 'refs/heads/main'
+        run: echo "::error::publish is only for a run on main"; exit 1
+
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/release-preflight
+        with:
+          publish: ${{ inputs.publish || false }}
+          require-tag: 'false'
+          target: FreeMixer/freemixer.github.io
+          gpg-key: ${{ secrets.OPENMIXER_PACKAGES_SIGNING_KEY }}
+          pages-token: ${{ secrets.PAGES_TOKEN }}
+
+  build:
+    name: Build (fc${{ matrix.fedora }}, ${{ matrix.arch }})
+    needs: preflight
+    runs-on: ${{ matrix.arch == 'aarch64' && 'ubuntu-24.04-arm' || github.event.pull_request.head.repo.fork && 'ubuntu-latest' || vars.OMX_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 120
+    container:
+      image: fedora:${{ matrix.fedora }}
+    strategy:
+      fail-fast: false
+      matrix:
+        fedora: ['44']
+        arch: [x86_64, aarch64]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/pinned-rpms
+        with:
+          names: surge-xt
+
+      - name: Stage the packages and check what they carry
+        env:
+          ARCH: ${{ matrix.arch }}
+          FEDORA: ${{ matrix.fedora }}
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          cp pinned-rpms/surge-xt-[0-9]*."$ARCH".rpm pinned-rpms/surge-xt-clap-*."$ARCH".rpm \
+            pinned-rpms/surge-xt-lv2-*."$ARCH".rpm pinned-rpms/surge-xt-data-*.noarch.rpm release/
+          # the source package is the same for both architectures: one build files it
+          if [ "$ARCH" = x86_64 ]; then cp pinned-rpms/SRPMS/*.src.rpm release/; fi
+          for f in release/*.rpm; do
+            evr=$(rpm -qp --qf '%{VERSION}-%{RELEASE}' "$f")
+            case "$evr" in 1.4.0^*.omx.fc"$FEDORA") ;; *) echo "::error::$f: $evr is not 1.4.0 or later with .omx.fc$FEDORA"; exit 1 ;; esac
+          done
+          rpm -qpl release/surge-xt-clap-*."$ARCH".rpm | grep -qx '/usr/lib/clap/Surge XT.clap' \
+            || { echo "::error::surge-xt-clap does not carry /usr/lib/clap/Surge XT.clap"; exit 1; }
+          rpm -qpl release/surge-xt-lv2-*."$ARCH".rpm | grep -q '^/usr/lib/lv2/Surge XT.lv2/' \
+            || { echo "::error::surge-xt-lv2 does not carry /usr/lib/lv2/Surge XT.lv2"; exit 1; }
+          if rpm -qpl release/*.rpm | grep -q '^/usr/local'; then echo "::error::a package carries /usr/local"; exit 1; fi
+
+      - uses: ./.github/actions/add-openmixer
+
+      - name: Install from a clean state and load the plugin in the hosts' scanners
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          dnf install -y --setopt=install_weak_deps=False omx-clap-host lilv
+          dnf install -y --setopt=install_weak_deps=False release/surge-xt-[0-9]*."$ARCH".rpm release/surge-xt-clap-*."$ARCH".rpm \
+            release/surge-xt-lv2-*."$ARCH".rpm release/surge-xt-data-*.noarch.rpm
+          packaging/surge-xt/load-check.sh /
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: surge-xt-rpms-fc${{ matrix.fedora }}-${{ matrix.arch }}
+          path: release/*.rpm
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    name: Sign and publish
+    needs: build
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: fedora:44
+    concurrency:
+      group: publish-FreeMixer/freemixer.github.io
+      cancel-in-progress: false
+    env:
+      DO_PUBLISH: ${{ inputs.publish && github.ref == 'refs/heads/main' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: surge-xt-rpms-*
+          merge-multiple: true
+          path: collected
+
+      - name: Read the versions the packages carry
+        run: |
+          echo "TAG=surge-xt-$(rpm -qp --qf '%{VERSION}-%{RELEASE}' collected/surge-xt-clap-*.x86_64.rpm)" | tr '^' '_' >> "$GITHUB_ENV"
+
+      - uses: ./.github/actions/publish-rpms
+        with:
+          rpm-dir: collected
+          tag: ${{ env.TAG }}
+          sign: ${{ env.DO_PUBLISH }}
+          gpg-key: ${{ secrets.OPENMIXER_PACKAGES_SIGNING_KEY }}
+          publish-token: ${{ secrets.PAGES_TOKEN }}
+          site-gpg-key: ${{ secrets.SITE_GPG_KEY }}
+
+      - uses: actions/upload-artifact@v4
+        if: env.DO_PUBLISH != 'true'
+        with:
+          name: surge-xt-unsigned-rpm-tree
+          path: build/repo/**
+          if-no-files-found: error
+          retention-days: 30

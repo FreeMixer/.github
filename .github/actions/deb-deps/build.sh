@@ -32,6 +32,9 @@ for name in "$@"; do
         "$mod_host/fetch-source.sh" "$src"
         source=mod-host
         fail_on=error
+    elif [ -x "$carried/$name/make-source.sh" ]; then
+        # a source with submodules (Surge XT): the package lays out its own checkout
+        "$carried/$name/make-source.sh" "$src"
     else
         [ -d "$here/$name" ] || { echo "no debian directory for $name" >&2; exit 1; }
         read -r _ url ref < <(grep "^$name " "$pins") || { echo "$name has no line in pins.txt" >&2; exit 1; }
