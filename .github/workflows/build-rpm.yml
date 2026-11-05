@@ -159,6 +159,7 @@ jobs:
           packages: ${{ inputs.binary-names || inputs.package-name }}
           republish: ${{ inputs.republish }}
           kind: rpm
+          releases: ${{ join(fromJSON(inputs.fedora-versions), ' ') }}
           gpg-key: ${{ secrets.OPENMIXER_PACKAGES_SIGNING_KEY }}
           pages-token: ${{ secrets.PAGES_TOKEN }}
 

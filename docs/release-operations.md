@@ -68,6 +68,18 @@ Use a throwaway Pages repository, never the live channel.
 5. Download an RPM or DEB from the GitHub release of the retried run and compare its sha256 with the file the
    channel serves.
 
+## A released version for a new Fedora release
+
+The release preflight refuses a version the channel already serves, but only in the trees the release publishes
+into: build-rpm.yml checks the Fedora releases of its `fedora-versions`, build-deb.yml the suites of its
+`suite-matrix`. A version served for fc44 therefore does not block its first fc45 publish.
+
+To give a new Fedora release the packages the others serve, without a version bump, run `publish-fedora.yml` on
+main with the repository, its existing tag and `fedora-versions` (`["45"]`). It checks the tag is annotated and
+verified, builds that commit with the inputs the repository's own release.yml passes, and publishes the named
+releases only; the GitHub release of the tag is left as it is. Publish in dependency order (omx-contract first),
+since each build takes its BuildRequires from the channel's tree of its own Fedora release, and one run at a time.
+
 ## openmixer-release, the package that adds the repository
 
 A machine adds the channel by installing `openmixer-release`, as RPM Fusion's machines do with
