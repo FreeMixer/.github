@@ -107,7 +107,7 @@ fi
 "/usr/lib/clap/Surge XT.clap"
 
 %files lv2
-/usr/lib/lv2/Surge XT.lv2/
+"/usr/lib/lv2/Surge XT.lv2/"
 
 %changelog
 * Wed Nov 04 2026 Pau Aliagas <linuxnow@gmail.com> - 1.4.0^20261103git72a6022-1.omx
