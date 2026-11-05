@@ -92,6 +92,8 @@ jobs:
       - uses: ./.github/actions/add-openmixer
 
       - name: Install from a clean state and load the plugin in the hosts' scanners
+        env:
+          ARCH: ${{ matrix.arch }}
         run: |
           set -euo pipefail
           dnf install -y --setopt=install_weak_deps=False omx-clap-host lilv
