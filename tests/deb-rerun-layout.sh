@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 # A rerun of a DEB release after its publish job succeeded. The first attempt uploads the published copies as one
 # more artifact of the run, laid out flat, and artifacts outlive their attempt: the download of the next attempt
 # must not take them for build output, because publish-tree.sh refuses a package outside <suite>/. Runs the
