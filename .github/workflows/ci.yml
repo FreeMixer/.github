@@ -156,13 +156,13 @@ jobs:
       - run: python3 -c 'import yaml' || sudo apt-get install -y python3-yaml
       - run: tests/channel-push-race.sh
 
-  channel-live-check:
-    name: channel push waits for the live site, and asks Pages again when it lags
+  pages-live:
+    name: the Pages wait reads the deployment status and names a lagging deployment
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - run: tests/channel-live-check.sh
+      - run: tests/pages-live.sh
 
   mod-host-fork:
     name: mod-host from the fork, then each fix taken out again

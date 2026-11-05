@@ -47,6 +47,11 @@ inputs:
     description: directory receiving the signed copies of the published packages
     default: signed
 
+outputs:
+  commit:
+    description: the commit pushed to the channel; empty when nothing was pushed (a dry run, or the channel already carried the tree)
+    value: ${{ steps.push.outputs.commit }}
+
 runs:
   using: composite
   steps:
@@ -125,7 +130,8 @@ runs:
       shell: bash
       run: echo "PUBLISH_RPMS_ACTION=$GITHUB_ACTION_PATH" >> "$GITHUB_ENV"
 
-    - uses: FreeMixer/.github/.github/actions/channel-push@v1
+    - id: push
+      uses: FreeMixer/.github/.github/actions/channel-push@v1
       if: inputs.sign == 'true'
       with:
         publish-token: ${{ inputs.publish-token }}
