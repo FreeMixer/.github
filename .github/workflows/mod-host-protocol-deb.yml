@@ -2,12 +2,11 @@
 # Copyright (C) 2026 Pau Aliagas <linuxnow@gmail.com>
 name: mod-host-protocol DEBs
 
-# Builds libmod-host-protocol0 and libmod-host-protocol-dev from packaging/mod-host, the same source and patches
-# as the RPMs, for every Debian release and architecture and publishes them into deb/ of the Pages repository,
-# where omx-clap-host and plugin-hostd Depend on them as the RPMs Require libmod-host-protocol.so.0. Run by hand,
-# once per change of packaging/mod-host: the packages carry the version of
-# actions/deb-deps/mod-host-protocol/changelog, and a published version is never rebuilt with new bytes, so a
-# change needs a new changelog entry with it.
+# Builds mod-host, libmod-host-protocol0 and libmod-host-protocol-dev from the FreeMixer fork of mod-host at the
+# commit .github/pins.txt names, by the fork's own debian/, the same source as the RPMs, for every Debian release and
+# architecture and publishes them into deb/ of the Pages repository, where omx-clap-host and plugin-hostd Depend on
+# them. Move the pin to the fork's release tag, then run this by hand: the packages carry the version of the fork's
+# debian/changelog, and a published version is never rebuilt with new bytes (docs/mod-host.md).
 #
 # publish=false, the default, is a dry run: it builds and assembles an unsigned tree as an artifact.
 
@@ -74,7 +73,7 @@ jobs:
           SUITE: ${{ matrix.suite }}
         run: |
           mkdir -p "out/$SUITE"
-          cp dep-debs/libmod-host-protocol*.deb "out/$SUITE/"
+          cp dep-debs/mod-host_*.deb dep-debs/libmod-host-protocol*.deb "out/$SUITE/"
 
       - uses: actions/upload-artifact@v4
         with:

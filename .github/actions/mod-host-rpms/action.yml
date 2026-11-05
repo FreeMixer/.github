@@ -3,21 +3,15 @@
 name: mod-host-rpms
 description: Build the mod-host, mod-host-protocol and mod-host-protocol-devel RPMs and install them
 
-# What a host repository's RPM build needs for BuildRequires: pkgconfig(mod-host-protocol), and for
-# a smoke test the mod-host binary itself. Built from packaging/mod-host, the audinux spec with the
-# upstream pull requests it carries (docs/mod-host-carried-patches.md). The installed library is then
-# checked for mod-audio/mod-host#113: a package without it fails here. Runs in a Fedora container as root.
+# What a host repository's RPM build needs for BuildRequires: pkgconfig(mod-host-protocol), and for a smoke test
+# the mod-host binary itself. Built by the fork's own packaging/mod-host.spec at the commit .github/pins.txt
+# names (actions/mod-host-protocol/fetch-source.sh), the source the published packages come from. The installed
+# library is then checked by actions/mod-host-protocol/checks/framing-test.sh. Runs in a Fedora container as root.
 
 inputs:
   out:
     description: directory the RPMs are copied to; the source package the binaries were built from is kept in SRPMS/ under it
     default: mod-host-rpms
-  release:
-    description: Release of the built packages, without the dist tag; empty keeps the spec's
-    default: ''
-  suffix:
-    description: appended to the Release after a dot, before the dist tag (the channel passes omx); empty keeps the spec's Release
-    default: ''
 
 runs:
   using: composite
@@ -26,8 +20,6 @@ runs:
       shell: bash
       env:
         OUT: ${{ inputs.out }}
-        RELEASE: ${{ inputs.release }}
-        SUFFIX: ${{ inputs.suffix }}
       run: '"$GITHUB_ACTION_PATH/build.sh" "$OUT"'
 
     - name: Install mod-host and its protocol library
@@ -40,7 +32,6 @@ runs:
           "$OUT"/mod-host-protocol-devel-*.rpm
         pkg-config --modversion mod-host-protocol
 
-    # the exact-1024-byte command and the framing of mod-audio/mod-host#113, against the installed package
-    - name: Check the installed library splits commands at their NUL
+    - name: Check the installed library
       shell: bash
-      run: '"$GITHUB_ACTION_PATH/../../../packaging/mod-host/framing-test.sh"'
+      run: '"$GITHUB_ACTION_PATH/../mod-host-protocol/checks/framing-test.sh"'
