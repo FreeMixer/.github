@@ -95,8 +95,8 @@ jobs:
         run: |
           set -euo pipefail
           dnf install -y --setopt=install_weak_deps=False omx-clap-host lilv
-          dnf install -y --setopt=install_weak_deps=False release/surge-xt-[0-9]*.rpm release/surge-xt-clap-*.rpm \
-            release/surge-xt-lv2-*.rpm release/surge-xt-data-*.rpm
+          dnf install -y --setopt=install_weak_deps=False release/surge-xt-[0-9]*."$ARCH".rpm release/surge-xt-clap-*."$ARCH".rpm \
+            release/surge-xt-lv2-*."$ARCH".rpm release/surge-xt-data-*.noarch.rpm
           packaging/surge-xt/load-check.sh /
 
       - uses: actions/upload-artifact@v4
