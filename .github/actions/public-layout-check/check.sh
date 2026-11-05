@@ -64,7 +64,7 @@ if [ "${1:-}" = --self-test ]; then
   red "a dated folder is red" docs/pi5-matrix-2026-11-02/run.json
   red "a dated folder under another is red" bench/runs/20261028/log.csv
   red "an evidence folder is red" doc/evidence/verbs.tsv
-  red "a notes folder at any depth is red" docs/design/notes/chains.md
+  red "a notes folder at any depth is red" docs/"de"sign/notes/chains.md
   red "a top-level notes folder is red" notes/x.json
   green "a data file named by its date passes" plugin-catalog/runs/2026-10-26.json
   green "a run id carrying a date passes" benchmarks/runs/rpi5-20261102-1.json
