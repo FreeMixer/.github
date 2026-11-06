@@ -48,8 +48,9 @@ uses for stageboxes. Besides libreac, reac-pw and reac-stageboxes above:
 The FreeMixer forks of [zynthian-ui](https://github.com/FreeMixer/zynthian-ui) and
 [zynthian-sys](https://github.com/FreeMixer/zynthian-sys) (branch `vangelis`) add an engine that runs a Zynthian
 chain's LV2 and CLAP plugins through plugin-hostd, with the plugin menus ordered from the measurements
-[plugin-qualify](https://github.com/FreeMixer/plugin-qualify) records. Those records for a ZynthianOS
-Vangelis image on a Raspberry Pi 5 are in [omx-qualification-records](https://github.com/FreeMixer/omx-qualification-records).
+[plugin-qualify](https://github.com/FreeMixer/plugin-qualify) records. Those records, one set per machine class (a
+ZynthianOS Vangelis image on a Raspberry Pi 5, Fedora 44 on x86-64), are plugin-db's qualification layer, in
+[plugin-db-qualification](https://github.com/FreeMixer/plugin-db-qualification).
 
 Repository, package and pkg-config names of every piece:
 https://www.openmixer.org/docs/plugins-names/
@@ -74,5 +75,5 @@ Each ships fuzz targets written to its contract. Enrollments open: [plugin-hostd
 
 - [openmixer-www](https://github.com/FreeMixer/openmixer-www): the website and documentation, <https://www.openmixer.org>.
 - [freemixer.github.io](https://github.com/FreeMixer/freemixer.github.io): the package repositories the install above uses.
-- [omx-qualification-records](https://github.com/FreeMixer/omx-qualification-records): plugin-qualify's records for the plugins a ZynthianOS image ships.
+- [plugin-db-qualification](https://github.com/FreeMixer/plugin-db-qualification): plugin-db's qualification layer, plugin-qualify's records per machine class, packaged as `plugin-db-qualification-<class>-<set>`.
 - [.github](https://github.com/FreeMixer/.github): this page and the release workflow every package shares.
