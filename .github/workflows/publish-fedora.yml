@@ -35,7 +35,7 @@ on:
           - FreeMixer/plugin-qualify
           - FreeMixer/omx-panel
           - FreeMixer/omx-plugins
-          - FreeMixer/omx-qualification-records
+          - FreeMixer/plugin-db-qualification
           - FreeREAC/libreac
           - FreeREAC/reac-pw
           - FreeREAC/reac-stageboxes
@@ -102,9 +102,9 @@ jobs:
             FreeMixer/plugin-qualify) package=plugin-qualify ;;
             FreeMixer/omx-panel) package=omx-panel bins=omx-panel ;;
             FreeMixer/omx-plugins) package=omx-plugins bins='omx-plugins omx-plugins-clap omx-plugins-lv2' ;;
-            FreeMixer/omx-qualification-records)
+            FreeMixer/plugin-db-qualification)
               # noarch data, built once
-              package=omx-qualification-records bins=omx-qualification-x86-64-fedora44 arm='["x86_64"]' deps=false ;;
+              package=plugin-db-qualification bins=plugin-db-qualification-x86-64-fedora44 arm='["x86_64"]' deps=false ;;
             FreeREAC/libreac)
               package=libreac bins='libreac libreac-devel libreac-transport libreac-transport-devel' deps=false ;;
             FreeREAC/reac-pw) package=reac-pw ;;
