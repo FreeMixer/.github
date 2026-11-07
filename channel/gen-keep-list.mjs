@@ -7,7 +7,7 @@
 // tests/channel-keep-list.sh fails a line that no source in the header produced, and a file whose lines do
 // not match its checksum.
 //
-//   gen-keep-list.mjs [--out channel/keep-list.txt] [--local <owner/repo>=<dir>]...
+//   gen-keep-list.mjs [--out channel/keep-list.txt] [--worker-image <owner/repo>] [--local <owner/repo>=<dir>]...
 //
 // A line is "<package> <version> <distro/arch> <pin>", tab separated. <version> is
 //   0.10.11-1   that exact build: the prune keeps it
@@ -18,7 +18,8 @@
 // is e.g. fedora/44/*, debian/bookworm/amd64.
 //
 // The sources (read from the default branch, or from a --local checkout):
-//   zerosignage/platform  k8s/omx-worker/images/*/baked-versions.yml   exact rpm rows, and the released floors
+//   the worker image's repository (private: --worker-image <owner/repo> or OMX_WORKER_IMAGE_REPO; it is named
+//                         in the output by its role only)  k8s/omx-worker/images/*/baked-versions.yml   exact rpm rows, and the released floors
 //   FreeMixer/.github     .github/pins.txt                             lines that name a version
 //   FreeMixer/zynthian-sys scripts/recipes/install_openmixer.sh at every omx-track/* tag: what a device installs
 //   FreeMixer/plugin-qualify .github/actions/install-plugin-hostd/action.yml   the plugin-hostd it fetches
@@ -113,17 +114,21 @@ export function pluginQualifyRows(text, pin) {
   return out;
 }
 
-export function collect(reader) {
+export function collect(reader, workerImage) {
   const rows = [];
   const sources = [];
+  // this file is public: a private repository is named by its role and a file name, never by its path
+  const PRIVATE = { [workerImage]: 'worker-image' };
   const src = (repo, ref, file, fn) => {
     const sha = reader.sha(repo, ref);
-    const pin = `${repo}@${ref || 'default'}:${file}`;
-    sources.push(`${repo}@${sha.slice(0, 12)} ${file}${ref ? ` (${ref})` : ''}`);
+    const label = PRIVATE[repo] || repo;
+    const shown = PRIVATE[repo] ? path.basename(file) : file;
+    const pin = `${label}@${ref || 'default'}:${shown}`;
+    sources.push(`${label}@${sha.slice(0, 12)} ${shown}${ref ? ` (${ref})` : ''}`);
     rows.push(...fn(reader.text(repo, ref, file), pin));
   };
-  for (const f of reader.files('zerosignage/platform', 'main', /^k8s\/omx-worker\/images\/[^/]+\/baked-versions\.yml$/)) {
-    src('zerosignage/platform', 'main', f, bakedRows);
+  for (const f of reader.files(workerImage, 'main', /^k8s\/omx-worker\/images\/[^/]+\/baked-versions\.yml$/)) {
+    src(workerImage, 'main', f, bakedRows);
   }
   src('FreeMixer/.github', 'main', '.github/pins.txt', pinsTxtRows);
   for (const tag of reader.tags('FreeMixer/zynthian-sys', 'omx-track/')) {
@@ -152,12 +157,15 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const args = process.argv.slice(2);
   const locals = {};
   let out = 'channel/keep-list.txt';
+  let workerImage = process.env.OMX_WORKER_IMAGE_REPO || '';
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--out') out = args[++i];
+    else if (args[i] === '--worker-image') workerImage = args[++i];
     else if (args[i] === '--local') { const [r, d] = args[++i].split('='); locals[r] = d; }
     else { console.error(`unknown argument ${args[i]}`); process.exit(2); }
   }
-  const text = render(collect(makeReader(locals)));
+  if (!workerImage) { console.error('the worker image repository is needed: --worker-image <owner/repo> or OMX_WORKER_IMAGE_REPO'); process.exit(2); }
+  const text = render(collect(makeReader(locals), workerImage));
   fs.mkdirSync(path.dirname(out), { recursive: true });
   fs.writeFileSync(out, text);
   console.log(`${out}: ${text.split('\n').filter((l) => l && !l.startsWith('#')).length} line(s)`);

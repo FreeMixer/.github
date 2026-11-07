@@ -11,7 +11,7 @@ cd "$(dirname "$0")/.."
 node --test channel/test/*.test.mjs
 if [ "${1:-}" = --live ]; then
 	tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
-	node channel/gen-keep-list.mjs --out "$tmp/keep-list.txt" >/dev/null
+	node channel/gen-keep-list.mjs --out "$tmp/keep-list.txt"  >/dev/null
 	# the header names the commits read; the lines are what must agree
 	diff <(grep -v '^#' channel/keep-list.txt) <(grep -v '^#' "$tmp/keep-list.txt") ||
 		{ echo "channel/keep-list.txt is stale: run node channel/gen-keep-list.mjs" >&2; exit 1; }
